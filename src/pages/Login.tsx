@@ -2,6 +2,18 @@ import { useState, type FormEvent } from 'react';
 import { getSupabase } from '../lib/store/supabase';
 import { Icon } from '../components/Icon';
 
+/** Traduce el error de Supabase Auth. Para credenciales malas el mensaje es genérico: no revela si el correo existe. */
+export function loginError(err: { status?: number; code?: string; message?: string }): string {
+  if (err.status === 429 || err.code === 'over_request_rate_limit') return 'Demasiados intentos. Espera unos minutos.';
+  if (err.code === 'email_not_confirmed')
+    return 'Esta cuenta no está confirmada. En Supabase → Authentication → Users, bórrala y vuelve a crearla marcando "Auto Confirm User".';
+  if (err.code === 'user_banned') return 'Esta cuenta está bloqueada.';
+  if (err.code === 'email_provider_disabled' || err.code === 'provider_disabled') return 'El acceso con correo está desactivado en Supabase (Authentication → Sign In / Providers → Email).';
+  if (err.status === 401 || /api key/i.test(err.message ?? '')) return 'La llave de Supabase configurada en Netlify no es válida. Revisa VITE_SUPABASE_ANON_KEY.';
+  if (!err.status || /fetch|network/i.test(err.message ?? '')) return 'No hay conexión con el servidor. Revisa tu internet o la variable VITE_SUPABASE_URL.';
+  return 'Correo o contraseña incorrectos.';
+}
+
 export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -14,8 +26,7 @@ export function LoginPage() {
     setError(null);
     const { error: err } = await getSupabase().auth.signInWithPassword({ email: email.trim().slice(0, 254), password: password.slice(0, 200) });
     setBusy(false);
-    // Mensaje genérico: no revela si el correo existe.
-    if (err) setError(err.status === 429 ? 'Demasiados intentos. Espera unos minutos.' : 'Correo o contraseña incorrectos.');
+    if (err) setError(loginError(err));
   }
 
   return (
