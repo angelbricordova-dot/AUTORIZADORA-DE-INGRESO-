@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findCedulaNumber, findPlate, formatCedula, isValidCedula, isValidPlate, parseCedulaOcr, parseGuestText } from './cedula';
+import { findCedulaNumber, findPlate, formatCedula, isValidCedula, isValidPlate, parseCedulaOcr, parseCedulasOcr, parseGuestText } from './cedula';
 
 describe('formatCedula', () => {
   it('agrupa con puntos', () => {
@@ -101,5 +101,33 @@ Toyota Corolla vinotinto placa AA046KT`;
     for (const g of r.guests) {
       expect(g.full_name).not.toMatch(/[=<>|!]/);
     }
+  });
+});
+
+describe('parseCedulasOcr (varias cédulas en una foto)', () => {
+  it('separa dos cédulas apiladas', () => {
+    const ocr = `REPUBLICA BOLIVARIANA DE VENEZUELA
+CEDULA DE IDENTIDAD
+V 12.816.045
+APELLIDOS MARQUEZ CONTRERAS
+NOMBRES NEYLUZ MARYORYE
+F. NACIMIENTO 12/03/1975
+REPUBLICA BOLIVARIANA DE VENEZUELA
+CEDULA DE IDENTIDAD
+V 23.456.789
+APELLIDOS GOMEZ PEREZ
+NOMBRES MARIA JOSE
+VENEZOLANA`;
+    expect(parseCedulasOcr(ocr)).toEqual([
+      { full_name: 'Neyluz Maryorye Marquez Contreras', cedula: '12.816.045' },
+      { full_name: 'Maria Jose Gomez Perez', cedula: '23.456.789' },
+    ]);
+  });
+  it('una sola cédula sigue funcionando y no duplica', () => {
+    const ocr = `V 12.816.045\nAPELLIDOS MARQUEZ\nNOMBRES NEYLUZ\nV-12.816.045`;
+    expect(parseCedulasOcr(ocr)).toEqual([{ full_name: 'Neyluz Marquez', cedula: '12.816.045' }]);
+  });
+  it('sin datos devuelve lista vacía', () => {
+    expect(parseCedulasOcr('foto borrosa')).toEqual([]);
   });
 });

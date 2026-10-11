@@ -3,7 +3,7 @@ import type { Reservation } from '../lib/types';
 import { addDays, parseISO, toISO } from '../lib/dates';
 import { layoutAwnings } from '../lib/awnings';
 import { isActive } from '../lib/availability';
-import { Awning } from './Awning';
+import { StayBar } from './StayBar';
 
 const DOWS = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
 
@@ -55,10 +55,10 @@ export function MonthCalendar({ reservations, year, month, today }: { reservatio
             {segments.map((seg) => (
               <div
                 key={seg.r.id}
-                className="cal-awning"
+                className="cal-stay"
                 style={{ gridColumn: `${seg.start + 1} / ${seg.end + 1}`, '--row': seg.lane + 2 } as CSSProperties}
               >
-                <Awning seg={seg} compact={seg.end - seg.start < 4} />
+                <StayBar seg={seg} compact={seg.end - seg.start < 4} />
               </div>
             ))}
           </div>

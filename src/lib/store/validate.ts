@@ -1,5 +1,5 @@
 // Punto 14: validación antes de enviar a la base de datos (la base vuelve a validar con CHECKs).
-import type { Guest, ReservationInput, Vehicle } from '../types';
+import type { Guest, PropertyInput, ReservationInput, Vehicle } from '../types';
 import { CHANNELS, MAX_GUESTS, MAX_VEHICLES, STAY_TYPES } from '../types';
 import { isValidISO, nightsBetween } from '../dates';
 import { cleanPersonName, cleanPhone, cleanText } from '../sanitize';
@@ -52,4 +52,41 @@ export function sanitizeVehicles(vehicles: Vehicle[]): Vehicle[] {
     if (v.description.length < 2) throw new Error(`Escribe modelo y color del vehículo ${i + 1}.`);
   });
   return list;
+}
+
+const PHOTO_URL = /^(\/fotos\/[A-Za-z0-9._-]+|https:\/\/[a-z0-9]+\.supabase\.co\/storage\/v1\/object\/public\/fotos\/[A-Za-z0-9/._-]+|data:image\/jpeg;base64,[A-Za-z0-9+/=]+)$/;
+
+export function sanitizeProperty(p: PropertyInput): PropertyInput {
+  const money = (v: number | null) => (v == null || Number.isNaN(Number(v)) ? null : Math.max(0, Math.min(100000, Math.round(Number(v) * 100) / 100)));
+  const out: PropertyInput = {
+    ...p,
+    kind: p.kind === 'aliado' ? 'aliado' : 'propio',
+    name: cleanText(p.name, 80),
+    title: cleanText(p.title, 80),
+    conjunto: cleanText(p.conjunto, 80) || 'JDC Pescadores I',
+    unit: cleanText(p.unit, 20),
+    summary: cleanText(p.summary, 280),
+    description: (p.description || '').normalize('NFC').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, '').trim().slice(0, 2000),
+    capacity: Math.max(1, Math.min(30, Math.round(Number(p.capacity) || 1))),
+    bedrooms: p.bedrooms == null || (p.bedrooms as unknown) === '' ? null : Math.max(0, Math.min(20, Math.round(Number(p.bedrooms)))),
+    nightly_usd: money(p.nightly_usd),
+    partner_cost_usd: p.kind === 'aliado' ? money(p.partner_cost_usd) : null,
+    promo: cleanText(p.promo, 140),
+    amenities: p.amenities.map((a) => cleanText(a, 40)).filter(Boolean).slice(0, 20),
+    photos: p.photos.filter((u) => PHOTO_URL.test(u)).slice(0, 12),
+    published: !!p.published,
+    sort: Math.max(-100, Math.min(100, Math.round(Number(p.sort) || 0))),
+    owner_name: cleanText(p.owner_name, 120),
+    owner_cedula: p.owner_cedula.trim() ? formatCedula(p.owner_cedula).replace(/[^0-9.]/g, '') : '',
+    contact_whatsapp: (p.contact_whatsapp || '').replace(/\D/g, '').slice(0, 15),
+    airbnb_url: cleanText(p.airbnb_url, 300),
+    instagram_url: cleanText(p.instagram_url, 300),
+  };
+  if (!out.unit) throw new Error('Escribe el número del apartamento.');
+  if (!out.name) out.name = out.kind === 'propio' ? `Apartamento N°${out.unit}` : `Apto ${out.unit}`;
+  if (out.airbnb_url && !/^https:\/\/(www\.)?airbnb\.[a-z.]+\//.test(out.airbnb_url)) throw new Error('El enlace de Airbnb no es válido.');
+  if (out.instagram_url && !/^https:\/\/(www\.)?instagram\.com\//.test(out.instagram_url)) throw new Error('El enlace de Instagram no es válido.');
+  if (out.kind === 'aliado' && out.nightly_usd != null && out.partner_cost_usd != null && out.nightly_usd < out.partner_cost_usd)
+    throw new Error('El precio público no puede ser menor a lo que cobra el dueño.');
+  return out;
 }

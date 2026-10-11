@@ -11,9 +11,12 @@ export function overlaps(a: Pick<Reservation, 'check_in' | 'check_out'>, b: Pick
   return a.check_in < b.check_out && b.check_in < a.check_out;
 }
 
-export function conflictsFor<T extends Reservation>(r: Pick<Reservation, 'id' | 'check_in' | 'check_out' | 'status'>, all: T[]): T[] {
+const sameProperty = (a: { property_id?: string }, b: { property_id?: string }) => !a.property_id || !b.property_id || a.property_id === b.property_id;
+
+/** Reservas activas del mismo apartamento que se pisan con `r`. */
+export function conflictsFor<T extends Reservation>(r: Pick<Reservation, 'id' | 'check_in' | 'check_out' | 'status'> & { property_id?: string }, all: T[]): T[] {
   if (!isActive(r)) return [];
-  return all.filter((o) => o.id !== r.id && isActive(o) && overlaps(r, o));
+  return all.filter((o) => o.id !== r.id && isActive(o) && sameProperty(r, o) && overlaps(r, o));
 }
 
 /** Pares de reservas activas que se pisan. */
@@ -21,7 +24,7 @@ export function allConflicts(all: Reservation[]): [Reservation, Reservation][] {
   const act = all.filter(isActive).sort((a, b) => compareISO(a.check_in, b.check_in));
   const pairs: [Reservation, Reservation][] = [];
   for (let i = 0; i < act.length; i++)
-    for (let j = i + 1; j < act.length && act[j].check_in < act[i].check_out; j++) pairs.push([act[i], act[j]]);
+    for (let j = i + 1; j < act.length && act[j].check_in < act[i].check_out; j++) if (sameProperty(act[i], act[j])) pairs.push([act[i], act[j]]);
   return pairs;
 }
 

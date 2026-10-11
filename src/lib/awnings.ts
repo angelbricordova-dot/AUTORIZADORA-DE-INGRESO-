@@ -44,7 +44,7 @@ export function layoutAwnings(all: Reservation[], rangeStart: string, days: numb
       lane,
       cutStart: s < 0,
       cutEnd: e > cols,
-      conflict: active.some((o) => o.id !== r.id && overlaps(r, o)),
+      conflict: active.some((o) => o.id !== r.id && o.property_id === r.property_id && overlaps(r, o)),
     };
   });
   return { segments, lanes: Math.max(1, laneEnds.length) };

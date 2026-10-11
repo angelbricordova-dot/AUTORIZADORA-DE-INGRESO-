@@ -92,5 +92,31 @@ set role authenticated;
 select set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111', false);
 select pg_temp.check((select total_usd from public.reservations where id='bbbbbbbb-0000-0000-0000-000000000001') = 240, 'B no pudo modificar montos de A');
 select pg_temp.check((select count(*) from public.guests) = 3, 'B no pudo borrar personas de A');
+
+-- ===== Sitio público (v2)
+reset role;
+set role authenticated;
+select set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111', false);
+update public.properties set kind='propio', title='Tu Día en Tucacas · N°30', capacity=7, nightly_usd=90, published=true,
+  contact_whatsapp='584242703482', photos=array['/fotos/sala.jpg'], owner_cedula='17.571.156'
+ where id='aaaaaaaa-0000-0000-0000-000000000001';
+insert into public.properties (id, name, unit, kind, title, capacity, nightly_usd, partner_cost_usd, published, contact_whatsapp)
+values ('aaaaaaaa-0000-0000-0000-000000000002','Apto 12','12','aliado','Apartamento 12',6,120,100,true,'584140000000');
+insert into public.properties (id, name, unit, kind, published) values ('aaaaaaaa-0000-0000-0000-000000000003','Borrador','5','aliado',false);
+select pg_temp.expect_error($q$update public.properties set photos=array['https://evil.example.com/x.jpg'] where id='aaaaaaaa-0000-0000-0000-000000000002'$q$, 'foto de dominio ajeno');
+select pg_temp.expect_error($q$update public.properties set photos=array['javascript:alert(1)'] where id='aaaaaaaa-0000-0000-0000-000000000002'$q$, 'foto con javascript');
+select pg_temp.expect_error($q$update public.properties set airbnb_url='https://phishing.com/airbnb' where id='aaaaaaaa-0000-0000-0000-000000000001'$q$, 'enlace de Airbnb falso');
+update public.properties set photos=array['https://abcdefgh.supabase.co/storage/v1/object/public/fotos/1111/x.jpg'] where id='aaaaaaaa-0000-0000-0000-000000000002';
+
+reset role;
+set role anon;
+select set_config('request.jwt.claim.sub','', false);
+select pg_temp.check((select count(*) = 2 from public.public_listings()), 'público ve solo los 2 publicados');
+select pg_temp.check((select contact_whatsapp = '' from public.public_listings() where kind='aliado'), 'el aliado no expone su contacto');
+select pg_temp.check((select count(*) >= 2 from public.public_busy('2026-10-01','2026-11-01')), 'público ve noches ocupadas');
+select pg_temp.check((select bool_and(check_out > check_in) from public.public_busy('2026-10-01','2026-11-01')), 'solo rangos de fechas');
+select pg_temp.expect_error($q$select * from public.public_busy('2026-01-01','2028-01-01')$q$, 'rango público demasiado largo');
+select pg_temp.expect_error($q$select partner_cost_usd from public.properties$q$, 'anon no lee costos de aliados');
+select pg_temp.expect_error($q$select public.valid_photo_urls(array['x'])$q$, 'anon no usa funciones internas');
 reset role;
 \echo 'TODAS LAS PRUEBAS DE BASE DE DATOS PASARON'

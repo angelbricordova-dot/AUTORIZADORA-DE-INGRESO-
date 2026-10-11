@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { getSupabase, supabaseHost } from '../lib/store/supabase';
 import { Icon } from '../components/Icon';
+import { LogoMark } from '../components/Logo';
 
 /** Traduce el error de Supabase Auth. Para credenciales malas el mensaje es genérico: no revela si el correo existe. */
 export function loginError(err: { status?: number; code?: string; message?: string }): string {
@@ -37,19 +38,14 @@ export function LoginPage() {
 
   return (
     <div className="login">
-      <header className="masthead">
-        <div className="masthead-row">
-          <span className="brand">
-            <span className="brand-name">JDC Pescadores I</span>
-            <span className="brand-unit">N°30</span>
-          </span>
-        </div>
-        <div style={{ height: 12 }} />
+      <header className="login-hero">
+        <LogoMark />
+        <h1 style={{ color: '#fff' }}>Tu Día en Tucacas</h1>
+        <p style={{ opacity: 0.85 }}>Panel de autorizaciones y estadías</p>
       </header>
       <main className="login-card">
         <form className="stack" onSubmit={onSubmit}>
-          <h1>Entrar</h1>
-          <p className="muted">Autorizaciones de ingreso y control de estadías.</p>
+          <h2>Entrar</h2>
           <div className="field">
             <label htmlFor="email">Correo</label>
             <input id="email" className="input" type="email" autoComplete="username" autoCapitalize="none" spellCheck={false} required value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -71,6 +67,9 @@ export function LoginPage() {
             {busy ? <span className="spinner" /> : null} Entrar
           </button>
           <p className="hint">Las cuentas las crea el administrador. Si olvidaste la contraseña, pídele que te la restablezca.</p>
+          <a className="btn btn-ghost btn-small" href="/">
+            Volver a la página
+          </a>
         </form>
       </main>
     </div>

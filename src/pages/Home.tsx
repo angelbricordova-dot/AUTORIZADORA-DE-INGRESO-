@@ -1,13 +1,17 @@
+import type { CSSProperties } from 'react';
 import { useApp } from '../context';
-import { monthStats, pendingItems, todayMovements, balance, type PendingItem } from '../lib/availability';
-import { formatDayMonth, formatLong, monthName, nightsBetween, weekdayShort } from '../lib/dates';
+import { monthStats, pendingItems, todayMovements, balance, nightsWithin, type PendingItem } from '../lib/availability';
+import { addDays, formatDayMonth, formatLong, monthName, nightsBetween, weekdayShort } from '../lib/dates';
 import { formatUSD } from '../lib/money';
+import { commission, propertyLabel, type Property } from '../lib/types';
 import { href } from '../router';
 import { Icon } from '../components/Icon';
-import { stayDates } from '../components/StayRow';
+import { LogoMark } from '../components/Logo';
+import { Strip } from '../components/Strip';
 
-function PendingRow({ item, today }: { item: PendingItem; today: string }) {
+function PendingRow({ item, today, prop }: { item: PendingItem; today: string; prop?: Property }) {
   const r = item.reservation;
+  const where = prop && prop.kind === 'aliado' ? ` · ${propertyLabel(prop)}` : '';
   if (item.kind === 'conflicto') {
     const o = item.other!;
     const target = r.status === 'tentativa' ? r : o;
@@ -17,10 +21,8 @@ function PendingRow({ item, today }: { item: PendingItem; today: string }) {
           <Icon name="alert" />
         </span>
         <span className="grow">
-          <span className="title" style={{ display: 'block' }}>
-            Fechas que chocan
-          </span>
-          <span className="sub" style={{ display: 'block' }}>
+          <span className="title">Fechas que chocan{where}</span>
+          <span className="sub">
             {r.contact_name} y {o.contact_name} · {formatDayMonth(r.check_in > o.check_in ? r.check_in : o.check_in)}
           </span>
         </span>
@@ -33,14 +35,15 @@ function PendingRow({ item, today }: { item: PendingItem; today: string }) {
     const when = days <= 0 ? 'ya llegaron' : days === 1 ? 'llegan mañana' : `llegan el ${weekdayShort(r.check_in)} ${formatDayMonth(r.check_in)}`;
     return (
       <a className="list-item" href={href(`/autorizacion/${r.id}`)}>
-        <span className={`lead-icon ${item.urgent ? 'lead-warn' : 'lead-ok'}`} style={item.urgent ? undefined : { background: 'var(--lona-soft)', color: 'var(--lona)' }}>
+        <span className={`lead-icon ${item.urgent ? 'lead-warn' : 'lead-brand'}`}>
           <Icon name="idcard" />
         </span>
         <span className="grow">
-          <span className="title" style={{ display: 'block' }}>
+          <span className="title">
             {r.contact_name}
+            {where}
           </span>
-          <span className="sub" style={{ display: 'block' }}>
+          <span className="sub">
             {r.auth_status === 'generada' ? 'Planilla lista, falta enviarla' : 'Falta la autorización'} · {when}
           </span>
         </span>
@@ -54,10 +57,11 @@ function PendingRow({ item, today }: { item: PendingItem; today: string }) {
         <Icon name="money" />
       </span>
       <span className="grow">
-        <span className="title" style={{ display: 'block' }}>
+        <span className="title">
           {r.contact_name}
+          {where}
         </span>
-        <span className="sub" style={{ display: 'block' }}>
+        <span className="sub">
           Debe {formatUSD(balance(r))} de {formatUSD(r.total_usd)} · entra {formatDayMonth(r.check_in)}
         </span>
       </span>
@@ -67,32 +71,84 @@ function PendingRow({ item, today }: { item: PendingItem; today: string }) {
 }
 
 export function HomePage() {
-  const { data, today } = useApp();
-  const all = data.reservations;
-  const items = pendingItems(all, today);
-  const mv = todayMovements(all, today);
+  const { data, today, ownId } = useApp();
+  const props = new Map(data.properties.map((p) => [p.id, p]));
+  const own = data.reservations.filter((r) => r.property_id === ownId);
+  const items = pendingItems(data.reservations, today);
+  const mv = todayMovements(own, today);
   const monthStart = today.slice(0, 8) + '01';
-  const stats = monthStats(all, monthStart);
-  const owed = all.filter((r) => r.status === 'confirmada' && r.check_out > today).reduce((s, r) => s + balance(r), 0);
+  const monthEnd = addDays(monthStart, 40).slice(0, 8) + '01';
+  const stats = monthStats(own, monthStart);
   const m = Number(today.slice(5, 7)) - 1;
+  const firstName = data.settings.owner_name.split(' ')[0] || 'Hola';
 
-  const movement: { when: string; text: string; id: string; sub: string }[] = [];
-  mv.departures.forEach((r) => movement.push({ when: 'Sale hoy', text: r.contact_name, id: r.id, sub: 'Entrega antes del mediodía' }));
-  mv.arrivals.forEach((r) => movement.push({ when: 'Entra hoy', text: r.contact_name, id: r.id, sub: `${r.guests.length || '¿?'} personas · ${stayDates(r)}` }));
-  if (mv.inHouse && !mv.arrivals.includes(mv.inHouse))
-    movement.push({ when: 'En casa', text: mv.inHouse.contact_name, id: mv.inHouse.id, sub: `Sale el ${formatLong(mv.inHouse.check_out)}` });
-  if (mv.next) movement.push({ when: 'Próxima', text: mv.next.contact_name, id: mv.next.id, sub: `Entra el ${formatLong(mv.next.check_in)}` });
+  // Comisión del mes: noches vendidas en apartamentos aliados × (precio público − costo del dueño)
+  const commissionMonth = data.reservations
+    .filter((r) => r.status === 'confirmada' && r.property_id !== ownId && r.total_usd > 0)
+    .reduce((sum, r) => {
+      const c = commission(props.get(r.property_id) ?? { nightly_usd: null, partner_cost_usd: null });
+      return c ? sum + c * nightsWithin(r, monthStart, monthEnd) : sum;
+    }, 0);
+
+  let label = 'Hoy en el N°' + data.settings.unit;
+  let big = 'Libre hoy';
+  let meta = mv.next ? `Próxima llegada: ${mv.next.contact_name}, ${formatLong(mv.next.check_in)}` : 'No hay llegadas próximas registradas';
+  let target = mv.next ? `/autorizacion/${mv.next.id}` : '/autorizacion';
+  if (mv.arrivals[0]) {
+    big = `Entra ${mv.arrivals[0].contact_name}`;
+    meta = mv.arrivals[0].auth_status === 'enviada' ? 'Autorización enviada' : 'Falta enviar la autorización';
+    target = `/autorizacion/${mv.arrivals[0].id}`;
+  } else if (mv.inHouse) {
+    big = `En casa: ${mv.inHouse.contact_name}`;
+    meta = `Salen el ${formatLong(mv.inHouse.check_out)}`;
+    target = `/reserva/${mv.inHouse.id}`;
+  }
+  if (mv.departures[0] && !mv.arrivals[0]) label = `Hoy sale ${mv.departures[0].contact_name}`;
 
   return (
     <div className="page">
+      <div className="hello">
+        <h1>Hola, {firstName}</h1>
+        <p>{formatLong(today).replace(/^./, (c) => c.toUpperCase())}</p>
+      </div>
+
+      <section className="today-card" aria-label="Hoy">
+        <LogoMark className="art" />
+        <div className="label">{label}</div>
+        <div className="big">{big}</div>
+        <div className="meta">{meta}</div>
+        <div className="actions">
+          <a className="btn solid" href={href(target)}>
+            {target.startsWith('/autorizacion') ? 'Autorización' : 'Ver estadía'}
+          </a>
+          <a className="btn" href={href('/calendario')}>
+            Calendario
+          </a>
+        </div>
+      </section>
+
+      <section className="section" aria-labelledby="h-noches">
+        <div className="section-head">
+          <h2 id="h-noches">Próximas noches</h2>
+          <a className="link" href={href('/calendario')}>
+            Ver mes
+          </a>
+        </div>
+        <Strip reservations={own} today={today} />
+      </section>
+
       <section className="section" aria-labelledby="h-pend">
         <div className="section-head">
           <h2 id="h-pend">Pendiente</h2>
-          {items.length ? <span className="muted small">{items.length}</span> : null}
+          {items.length ? <span className="badge badge-warn">{items.length}</span> : null}
         </div>
-        <div className="panel list">
+        <div className="panel list stagger">
           {items.length ? (
-            items.map((it, i) => <PendingRow key={`${it.kind}-${it.reservation.id}-${i}`} item={it} today={today} />)
+            items.map((it, i) => (
+              <div key={`${it.kind}-${it.reservation.id}-${i}`} style={{ '--i': i } as CSSProperties}>
+                <PendingRow item={it} today={today} prop={props.get(it.reservation.property_id)} />
+              </div>
+            ))
           ) : (
             <div className="empty">
               <span className="badge badge-ok">
@@ -104,58 +160,27 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="section" aria-labelledby="h-hoy">
-        <div className="section-head">
-          <h2 id="h-hoy">Movimiento</h2>
-          <a className="link" href={href('/calendario')}>
-            Ver calendario
-          </a>
-        </div>
-        <div className="panel today">
-          {movement.length ? (
-            movement.map((x) => (
-              <a key={x.when + x.id} className="today-row" href={href(`/reserva/${x.id}`)}>
-                <span className="when">{x.when}</span>
-                <span className="grow" style={{ minWidth: 0, flex: 1 }}>
-                  <span className="title" style={{ display: 'block', fontWeight: 650 }}>
-                    {x.text}
-                  </span>
-                  <span className="sub muted small" style={{ display: 'block' }}>
-                    {x.sub}
-                  </span>
-                </span>
-                <Icon name="chevronRight" className="chev" style={{ width: 18, height: 18, color: 'var(--line-strong)' }} />
-              </a>
-            ))
-          ) : (
-            <div className="empty">
-              <p className="muted">No hay estadías próximas. Cuando alguien reserve, regístrala para ver aquí quién entra y quién sale.</p>
-              <a className="btn btn-secondary btn-small" href={href('/reserva/nueva')}>
-                <Icon name="plus" /> Registrar estadía
-              </a>
-            </div>
-          )}
-        </div>
-      </section>
-
       <section className="section" aria-labelledby="h-mes">
         <h2 id="h-mes" style={{ textTransform: 'capitalize' }}>
           {monthName(m)}
         </h2>
-        <div className="panel panel-pad stack" style={{ gap: 12 }}>
-          <div className="occupancy" role="img" aria-label={`Ocupación ${Math.round(stats.occupancy * 100)}%`}>
-            <div style={{ width: `${Math.round(stats.occupancy * 100)}%` }} />
+        <div className="stats">
+          <div className="stat">
+            <div className="v">{Math.round(stats.occupancy * 100)}%</div>
+            <div className="k">
+              {stats.occupied} de {stats.nights} noches
+            </div>
+            <div className="occupancy" aria-hidden="true">
+              <div style={{ width: `${Math.round(stats.occupancy * 100)}%` }} />
+            </div>
           </div>
-          <div className="month-line">
-            <span>
-              <b>{stats.occupied}</b> de {stats.nights} noches ocupadas
-            </span>
-            <span>
-              <b>{formatUSD(stats.revenue)}</b> facturado
-            </span>
-            <span>
-              <b>{formatUSD(owed)}</b> por cobrar
-            </span>
+          <div className="stat">
+            <div className="v">{formatUSD(stats.revenue)}</div>
+            <div className="k">Facturado N°{data.settings.unit}</div>
+          </div>
+          <div className="stat">
+            <div className="v">{formatUSD(commissionMonth)}</div>
+            <div className="k">Comisiones</div>
           </div>
         </div>
       </section>

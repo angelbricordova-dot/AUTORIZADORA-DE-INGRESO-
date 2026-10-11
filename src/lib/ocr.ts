@@ -2,7 +2,7 @@
 // El motor y el idioma se sirven desde /ocr (mismo dominio), sin CDNs externos.
 import type { Worker } from 'tesseract.js';
 import { binarize, toCanvas } from './image';
-import { findPlate, parseCedulaOcr } from './cedula';
+import { findPlate, parseCedulaOcr, parseCedulasOcr } from './cedula';
 
 let workerPromise: Promise<Worker> | null = null;
 
@@ -34,17 +34,51 @@ async function recognize(canvas: HTMLCanvasElement, whitelist: string, psm: stri
 
 const LETRAS = 'ABCDEFGHIJKLMNÑOPQRSTUVWXYZÁÉÍÓÚ abcdefghijklmnñopqrstuvwxyzáéíóú';
 
-export async function readCedulaLocal(file: Blob): Promise<{ full_name: string; cedula: string }> {
-  const photo = await toCanvas(file, 1800);
-  // 1) lectura completa de la foto: es la que mejor funciona con cédulas nítidas
-  const first = parseCedulaOcr(await recognize(photo, '', '3'));
-  let { full_name, cedula } = first;
-  if (full_name && cedula) return first;
-  // 2) respaldo con la foto en blanco y negro (reflejos, fondo dorado)
+type Read = { full_name: string; cedula: string };
+
+/** Lee una foto y completa nombre o número con una pasada en blanco y negro si faltan. */
+async function readOne(photo: HTMLCanvasElement): Promise<Read[]> {
+  const found = parseCedulasOcr(await recognize(photo, '', '3'));
+  if (found.length > 1 || (found[0]?.full_name && found[0]?.cedula)) return found;
   const bw = binarize(photo);
-  if (!cedula) cedula = parseCedulaOcr(await recognize(bw, '', '11')).cedula;
-  if (!full_name) full_name = parseCedulaOcr(await recognize(bw, LETRAS, '4')).full_name;
-  return { full_name, cedula };
+  const first = found[0] ?? { full_name: '', cedula: '' };
+  const cedula = first.cedula || parseCedulaOcr(await recognize(bw, '', '11')).cedula;
+  const full_name = first.full_name || parseCedulaOcr(await recognize(bw, LETRAS, '4')).full_name;
+  return full_name || cedula ? [{ full_name, cedula }] : [];
+}
+
+function half(src: HTMLCanvasElement, part: 'top' | 'bottom' | 'left' | 'right'): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  const vertical = part === 'top' || part === 'bottom';
+  // un poco de solape por si la línea de corte pasa por encima de un texto
+  c.width = vertical ? src.width : Math.round(src.width * 0.54);
+  c.height = vertical ? Math.round(src.height * 0.54) : src.height;
+  const sx = part === 'right' ? src.width - c.width : 0;
+  const sy = part === 'bottom' ? src.height - c.height : 0;
+  c.getContext('2d')?.drawImage(src, sx, sy, c.width, c.height, 0, 0, c.width, c.height);
+  return c;
+}
+
+/**
+ * Lee todas las cédulas de una foto (una o dos). Si la foto parece tener dos
+ * cédulas (apiladas o lado a lado) y la primera lectura solo encontró una,
+ * lee cada mitad por separado.
+ */
+export async function readCedulasLocal(file: Blob, onProgress?: (msg: string) => void): Promise<Read[]> {
+  const photo = await toCanvas(file, 2000);
+  const found = await readOne(photo);
+  if (found.length > 1) return found;
+  const ratio = photo.height / photo.width;
+  const parts: ['top', 'bottom'] | ['left', 'right'] | null = ratio >= 0.95 ? ['top', 'bottom'] : ratio <= 0.45 ? ['left', 'right'] : null;
+  if (!parts) return found;
+  onProgress?.('Buscando una segunda cédula en la foto…');
+  const halves = [...(await readOne(half(photo, parts[0]))), ...(await readOne(half(photo, parts[1])))];
+  const valid = halves.filter((r, i, a) => r.cedula && a.findIndex((x) => x.cedula === r.cedula) === i);
+  if (valid.length >= 2) {
+    // completa el nombre con la lectura completa si una mitad no lo trajo
+    return valid.map((r) => (r.full_name ? r : { ...r, full_name: found.find((f) => f.cedula === r.cedula)?.full_name ?? '' }));
+  }
+  return found;
 }
 
 export async function readPlateLocal(file: Blob): Promise<string> {

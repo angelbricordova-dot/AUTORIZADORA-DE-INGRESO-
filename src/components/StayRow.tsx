@@ -14,7 +14,7 @@ export function AuthBadge({ r }: { r: Reservation }) {
         <Icon name="check" /> Autorización enviada
       </span>
     );
-  if (r.auth_status === 'generada') return <span className="badge badge-lona">Planilla lista</span>;
+  if (r.auth_status === 'generada') return <span className="badge badge-brand">Planilla lista</span>;
   return <span className="badge badge-warn">Sin autorización</span>;
 }
 
@@ -23,16 +23,15 @@ export function stayDates(r: Reservation): string {
   return `${formatDayMonth(r.check_in)} → ${formatDayMonth(r.check_out)} · ${n} ${n === 1 ? 'noche' : 'noches'}`;
 }
 
-export function StayRow({ r, to }: { r: Reservation; to?: string }) {
+export function StayRow({ r, to, place }: { r: Reservation; to?: string; place?: string }) {
   const debt = balance(r);
   return (
     <a className="list-item" href={href(to ?? `/reserva/${r.id}`)}>
       <span className="flag" data-channel={r.channel} data-status={r.status} aria-hidden="true" />
       <span className="grow">
-        <span className="title" style={{ display: 'block' }}>
-          {r.contact_name}
-        </span>
-        <span className="sub" style={{ display: 'block' }}>
+        <span className="title">{r.contact_name}</span>
+        <span className="sub">
+          {place ? `${place} · ` : ''}
           {stayDates(r)} · {channelLabel(r.channel)}
           {r.status === 'tentativa' ? ' · tentativa' : ''}
         </span>

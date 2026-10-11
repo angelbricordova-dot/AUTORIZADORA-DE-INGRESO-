@@ -35,6 +35,12 @@ describe('choques de fechas', () => {
     expect(conflictsFor(a, [a, b, c]).map((x) => x.id)).toEqual([b.id]);
     expect(allConflicts([a, b, c])).toHaveLength(1);
   });
+  it('apartamentos distintos no chocan entre sí', () => {
+    const a = r({ check_in: '2026-10-17', check_out: '2026-10-19', property_id: 'p1' });
+    const b = r({ check_in: '2026-10-17', check_out: '2026-10-19', property_id: 'p2' });
+    expect(conflictsFor(a, [a, b])).toEqual([]);
+    expect(allConflicts([a, b])).toEqual([]);
+  });
 });
 
 describe('estadísticas del mes', () => {

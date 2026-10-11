@@ -232,3 +232,37 @@ export function parseGuestText(text: string): ParsedText {
   flushPending(false);
   return { guests, vehicles };
 }
+
+// ---------------------------------------------------------------------
+// Varias cédulas en una misma foto
+// ---------------------------------------------------------------------
+
+const NUM_EN_LINEA = /(?:^|[^A-Z0-9])([VE])\s*[-.:]?\s*\d{1,2}[.\s,]?\d{3}[.\s,]?\d{3}(?!\d)|(?<![\d.])\d{1,2}[.,]\d{3}[.,]\d{3}(?![\d.])/i;
+
+/**
+ * Interpreta el texto OCR de una foto que puede traer una o varias cédulas.
+ * Corta el texto en bloques que empiezan en cada número de cédula (en la cédula
+ * venezolana el número va arriba y los nombres debajo) y lee cada bloque.
+ */
+export function parseCedulasOcr(text: string): { full_name: string; cedula: string }[] {
+  const lines = (text || '').split(/\n/);
+  const starts: number[] = [];
+  lines.forEach((l, i) => {
+    if (NUM_EN_LINEA.test(l.toUpperCase())) starts.push(i);
+  });
+  if (starts.length < 2) {
+    const one = parseCedulaOcr(text);
+    return one.full_name || one.cedula ? [one] : [];
+  }
+  const out: { full_name: string; cedula: string }[] = [];
+  const seen = new Set<string>();
+  starts.forEach((s, k) => {
+    const end = k + 1 < starts.length ? starts[k + 1] : lines.length;
+    const block = lines.slice(s, end).join('\n');
+    const r = parseCedulaOcr(block);
+    if (!r.cedula || seen.has(r.cedula)) return;
+    seen.add(r.cedula);
+    out.push(r);
+  });
+  return out.length ? out : [parseCedulaOcr(text)];
+}

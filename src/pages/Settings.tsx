@@ -3,12 +3,12 @@ import { useApp } from '../context';
 import type { Settings } from '../lib/types';
 import { formatCedula, isValidCedula } from '../lib/cedula';
 import { cleanText } from '../lib/sanitize';
-import { resetDemo } from '../lib/store/demo';
 import { Icon } from '../components/Icon';
+import { href } from '../router';
 import { useToast } from '../components/Toast';
 
 export function SettingsPage() {
-  const { data, store, reload, signOut } = useApp();
+  const { data, store, reload } = useApp();
   const toast = useToast();
   const [s, setS] = useState<Settings>(data.settings);
   const [saving, setSaving] = useState(false);
@@ -39,9 +39,13 @@ export function SettingsPage() {
 
   return (
     <div className="page">
-      <h1>Ajustes</h1>
+      <div className="page-head">
+        <a className="icon-btn" href={href('/mas')} aria-label="Volver">
+          <Icon name="arrowLeft" />
+        </a>
+        <h1 className="grow">Datos de la planilla</h1>
+      </div>
       <form className="section" onSubmit={onSubmit} aria-labelledby="h-planilla">
-        <h2 id="h-planilla">Datos de la planilla</h2>
         <p className="muted small">Así aparecen en “Yo ______ CI ______” y en “Inmueble N°”.</p>
         <div className="panel panel-pad stack">
           <div className="field">
@@ -101,34 +105,6 @@ export function SettingsPage() {
         <p className="hint">Al terminar el trámite, borra las fotos de las cédulas de tu galería y del chat.</p>
       </section>
 
-      {store.mode === 'demo' ? (
-        <section className="section" aria-labelledby="h-demo">
-          <h2 id="h-demo">Modo demo</h2>
-          <div className="notice">
-            <Icon name="info" />
-            <span>
-              Los datos de ejemplo son inventados y todo se guarda solo en este navegador. Para usar la app de verdad, conecta Supabase (ver README).
-            </span>
-          </div>
-          <button
-            className="btn btn-secondary"
-            type="button"
-            onClick={async () => {
-              if (!window.confirm('¿Volver a los datos de ejemplo? Se borra lo que hayas cargado en este navegador.')) return;
-              resetDemo();
-              window.location.reload();
-            }}
-          >
-            Restablecer datos de ejemplo
-          </button>
-        </section>
-      ) : null}
-
-      {signOut ? (
-        <button className="btn btn-secondary" type="button" onClick={signOut}>
-          <Icon name="logout" /> Cerrar sesión
-        </button>
-      ) : null}
     </div>
   );
 }

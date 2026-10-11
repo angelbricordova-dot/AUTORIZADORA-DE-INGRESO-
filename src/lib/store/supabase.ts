@@ -1,12 +1,12 @@
 // Modo real: Supabase con RLS. Solo se usa la llave pública (anon); la seguridad la ponen las políticas.
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { Reservation } from '../types';
+import type { BusyRange, Property, PropertyInput, PublicData, PublicListing, Reservation } from '../types';
 import { cleanText } from '../sanitize';
 import { formatCedula } from '../cedula';
 import { cleanSupabaseKey, cleanSupabaseUrl } from '../supabaseConfig';
 import type { AppData, DataStore } from './types';
-import { DEFAULT_SETTINGS, friendlyError } from './types';
-import { sanitizeGuests, sanitizeReservation, sanitizeVehicles } from './validate';
+import { DEFAULT_SETTINGS, OWN_DEFAULTS, friendlyError } from './types';
+import { sanitizeGuests, sanitizeProperty, sanitizeReservation, sanitizeVehicles } from './validate';
 
 const url = cleanSupabaseUrl(import.meta.env.VITE_SUPABASE_URL as string | undefined);
 const anon = cleanSupabaseKey(import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined);
@@ -48,38 +48,58 @@ function mapRow(r: Row): Reservation {
   };
 }
 
-async function ensureProperty(sb: SupabaseClient) {
-  const { data, error } = await sb.from('properties').select('id, name, conjunto, unit').order('created_at').limit(1);
+const PROP_COLUMNS =
+  'id, kind, name, title, conjunto, unit, summary, description, capacity, bedrooms, nightly_usd, partner_cost_usd, promo, amenities, photos, published, sort, owner_name, owner_cedula, contact_whatsapp, airbnb_url, instagram_url';
+
+type PropRow = Omit<Property, 'nightly_usd' | 'partner_cost_usd'> & { nightly_usd: number | string | null; partner_cost_usd: number | string | null };
+
+function mapProp(r: PropRow): Property {
+  const num = (v: number | string | null) => (v == null ? null : Number(v));
+  return { ...r, nightly_usd: num(r.nightly_usd), partner_cost_usd: num(r.partner_cost_usd), amenities: r.amenities ?? [], photos: r.photos ?? [] };
+}
+
+function propFields(p: PropertyInput) {
+  const { id: _id, ...rest } = p;
+  return rest;
+}
+
+async function loadProperties(sb: SupabaseClient): Promise<Property[]> {
+  const { data, error } = await sb.from('properties').select(PROP_COLUMNS).order('sort').order('created_at');
   if (error) throw friendlyError(error);
-  if (data && data.length) return data[0];
-  const { data: created, error: e2 } = await sb
-    .from('properties')
-    .insert({ name: `Apartamento N°${DEFAULT_SETTINGS.unit}`, conjunto: DEFAULT_SETTINGS.conjunto, unit: DEFAULT_SETTINGS.unit })
-    .select('id, name, conjunto, unit')
-    .single();
-  if (e2) throw friendlyError(e2);
-  return created;
+  let list = ((data ?? []) as unknown as PropRow[]).map(mapProp);
+  if (!list.some((p) => p.kind === 'propio')) {
+    const { data: created, error: e2 } = await sb.from('properties').insert(propFields(sanitizeProperty(OWN_DEFAULTS))).select(PROP_COLUMNS).single();
+    if (e2) throw friendlyError(e2);
+    list = [mapProp(created as unknown as PropRow), ...list];
+  }
+  return list;
+}
+
+async function ownId(sb: SupabaseClient): Promise<string> {
+  const props = await loadProperties(sb);
+  return (props.find((p) => p.kind === 'propio') ?? props[0]).id;
 }
 
 export const supabaseStore: DataStore = {
   mode: 'supabase',
   async load(): Promise<AppData> {
     const sb = getSupabase();
-    const property = await ensureProperty(sb);
+    const properties = await loadProperties(sb);
+    const own = properties.find((p) => p.kind === 'propio') ?? properties[0];
     const [{ data: profile, error: pe }, { data: rows, error: re }] = await Promise.all([
       sb.from('profiles').select('full_name, cedula, admin_whatsapp').maybeSingle(),
-      sb.from('reservations').select(RES_COLUMNS).eq('property_id', property.id).order('check_in'),
+      sb.from('reservations').select(RES_COLUMNS).order('check_in'),
     ]);
     if (pe) throw friendlyError(pe);
     if (re) throw friendlyError(re);
     return {
-      property,
+      properties,
       settings: {
         owner_name: profile?.full_name || DEFAULT_SETTINGS.owner_name,
         owner_cedula: profile?.cedula || DEFAULT_SETTINGS.owner_cedula,
         admin_whatsapp: profile?.admin_whatsapp ?? '',
-        conjunto: property.conjunto,
-        unit: property.unit,
+        conjunto: own.conjunto,
+        unit: own.unit,
       },
       reservations: ((rows ?? []) as unknown as Row[]).map(mapRow),
     };
@@ -89,11 +109,11 @@ export const supabaseStore: DataStore = {
     const sb = getSupabase();
     const { data: auth } = await sb.auth.getUser();
     if (!auth.user) throw new Error('Tu sesión venció. Vuelve a entrar.');
-    const property = await ensureProperty(sb);
+    const id = await ownId(sb);
     const cedulaDigits = formatCedula(s.owner_cedula).replace(/[^0-9.]/g, '');
     const [{ error: e1 }, { error: e2 }] = await Promise.all([
       sb.from('profiles').update({ full_name: cleanText(s.owner_name, 120), cedula: cedulaDigits, admin_whatsapp: s.admin_whatsapp.replace(/[^0-9+ ]/g, '').slice(0, 20) }).eq('id', auth.user.id),
-      sb.from('properties').update({ conjunto: cleanText(s.conjunto, 80), unit: cleanText(s.unit, 20), name: `Apartamento N°${cleanText(s.unit, 20)}` }).eq('id', property.id),
+      sb.from('properties').update({ conjunto: cleanText(s.conjunto, 80), unit: cleanText(s.unit, 20) }).eq('id', id),
     ]);
     if (e1) throw friendlyError(e1);
     if (e2) throw friendlyError(e2);
@@ -115,12 +135,15 @@ export const supabaseStore: DataStore = {
       notes: clean.notes,
     };
     if (clean.id) {
-      const { error } = await sb.from('reservations').update(fields).eq('id', clean.id);
+      const { error } = await sb
+        .from('reservations')
+        .update(clean.property_id ? { ...fields, property_id: clean.property_id } : fields)
+        .eq('id', clean.id);
       if (error) throw friendlyError(error);
       return clean.id;
     }
-    const property = await ensureProperty(sb);
-    const { data, error } = await sb.from('reservations').insert({ ...fields, property_id: property.id }).select('id').single();
+    const propertyId = clean.property_id ?? (await ownId(sb));
+    const { data, error } = await sb.from('reservations').insert({ ...fields, property_id: propertyId }).select('id').single();
     if (error) throw friendlyError(error);
     return data.id as string;
   },
@@ -147,5 +170,49 @@ export const supabaseStore: DataStore = {
       .update({ auth_status: 'enviada', auth_sent_at: new Date().toISOString() })
       .eq('id', id);
     if (error) throw friendlyError(error);
+  },
+
+  async saveProperty(input) {
+    const sb = getSupabase();
+    const clean = sanitizeProperty(input);
+    if (clean.id) {
+      const { error } = await sb.from('properties').update(propFields(clean)).eq('id', clean.id);
+      if (error) throw friendlyError(error);
+      return clean.id;
+    }
+    const { data, error } = await sb.from('properties').insert(propFields(clean)).select('id').single();
+    if (error) throw friendlyError(error);
+    return data.id as string;
+  },
+
+  async deleteProperty(id) {
+    const sb = getSupabase();
+    const { data } = await sb.from('properties').select('kind').eq('id', id).maybeSingle();
+    if (data?.kind === 'propio') throw new Error('El apartamento propio no se puede borrar.');
+    const { error } = await sb.from('properties').delete().eq('id', id);
+    if (error) throw friendlyError(error);
+  },
+
+  async uploadPhoto(propertyId, jpeg) {
+    const sb = getSupabase();
+    const { data: auth } = await sb.auth.getUser();
+    if (!auth.user) throw new Error('Tu sesión venció. Vuelve a entrar.');
+    const path = `${auth.user.id}/${propertyId}/${crypto.randomUUID()}.jpg`;
+    const { error } = await sb.storage.from('fotos').upload(path, jpeg, { contentType: 'image/jpeg', upsert: false, cacheControl: '31536000' });
+    if (error) throw new Error('No se pudo subir la foto. ¿Ejecutaste la migración de fotos en Supabase?');
+    return sb.storage.from('fotos').getPublicUrl(path).data.publicUrl;
+  },
+
+  async loadPublic(from, to): Promise<PublicData> {
+    const sb = getSupabase();
+    const [{ data: listings, error: e1 }, { data: busy, error: e2 }] = await Promise.all([
+      sb.rpc('public_listings'),
+      sb.rpc('public_busy', { p_from: from, p_to: to }),
+    ]);
+    if (e1 || e2) throw new Error('No se pudo cargar la disponibilidad. Inténtalo de nuevo.');
+    return {
+      listings: ((listings ?? []) as PublicListing[]).map((l) => ({ ...l, nightly_usd: l.nightly_usd == null ? null : Number(l.nightly_usd) })),
+      busy: (busy ?? []) as BusyRange[],
+    };
   },
 };

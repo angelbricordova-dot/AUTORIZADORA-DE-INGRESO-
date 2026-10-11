@@ -22,7 +22,7 @@ Phase 1: stop losing time filling the conjunto's entry-authorization form by han
 
 Success: an authorization goes from "guest sent photos" to "sent to the administradora" in under two minutes, with no retyping, and Oniris always knows who is entering, when, and what is still pending or unpaid.
 
-Phase 2 (not built yet): a catalog of partner apartments inside the conjunto to offer to overflow groups when N°30 is taken; the partner sets a nightly price and the catalog sells it with a markup (example: partner $100 → offered at $120, $20 commission).
+Public page (main surface, built): "Tu Día en Tucacas", the N°30's own website. Shows price, amenities, photos and real availability; guests pick dates and book via WhatsApp (584242703482). If the dates are taken, it offers partner apartments of the same conjunto that are free on those dates; the partner sets a nightly price and the page sells it with a markup (example: partner $100 → offered at $120, $20 commission). The admin panel lives inside the same app at /admin.
 
 ## Positioning
 
@@ -41,9 +41,13 @@ Built for one specific gate: it produces the exact JDC Pescadores I authorizatio
 - Cédula photos are sensitive: process them on the device, never store them.
 - Spanish (Venezuela) UI, dates dd/mm/yyyy, money in USD.
 - Security baseline required by the user (20 points): hidden API keys, no secrets in Git, public DB key only, RLS, encryption of sensitive data, forced auth, record-level access, field-tampering protection, protected sessions, hashed passwords, rate limiting, bot protection, parametrized queries, input validation, content sanitization, file restrictions, minimal data returned, security headers, HTTPS, dependency scanning.
-- Undecided: exact partner-catalog commission rules, whether the administradora wants PDF/image in addition to the Excel.
+- Undecided: real apartment photos (to be uploaded from the panel), partner list and their prices, whether the administradora wants PDF/image in addition to the Excel.
 
 ## Brand Commitments
+
+- Brand: **Tu Día en Tucacas** (Instagram @aribnb.tucacas, "Alquiler por día · Airbnb"). Logo: white line art (palm, waves, sun, seagull, road) on a green-teal gradient; vectorized into `src/components/Logo.tsx`.
+- Public facts confirmed from Instagram: Hospedaje Pescadores, a minutos de la playa, WiFi, seguridad, agua, piscina, áreas recreativas; groups up to 7; $90/night and weekday promo 3 días 2 noches $165 (editable in the panel).
+- The user asked for phone-first, more dynamic UI, and rejected the stencil numerals and the scalloped blue header of v1.
 
 - Name of the conjunto and administradora as written on the form: "JDC Pescadores I", "Conjunto Residencial Pescadores I".
 - The marlin logo from the official form is the conjunto's mark, not the app's brand.

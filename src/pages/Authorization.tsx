@@ -1,19 +1,24 @@
-import { useEffect, useState, type ChangeEvent, type DragEvent } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent, type CSSProperties, type DragEvent } from 'react';
 import { useApp } from '../context';
 import type { Guest, Reservation, StayType, Vehicle } from '../lib/types';
-import { MAX_GUESTS, MAX_VEHICLES, STAY_TYPES } from '../lib/types';
-import { compareISO, formatDMY, formatLong, nightsBetween, todayISO } from '../lib/dates';
+import { MAX_GUESTS, MAX_VEHICLES, STAY_TYPES, propertyLabel } from '../lib/types';
+import { addDays, compareISO, formatDMY, formatDayMonth, formatLong, isValidISO, nightsBetween, todayISO } from '../lib/dates';
 import { formatCedula, isValidCedula, isValidPlate, normalizePlate, parseGuestText } from '../lib/cedula';
 import { checkImageFile, thumbnail } from '../lib/image';
-import { readCedulaLocal, readPlateLocal, warmUpOcr } from '../lib/ocr';
+import { readCedulasLocal, readPlateLocal, warmUpOcr } from '../lib/ocr';
 import { readCedulaAI } from '../lib/ai';
+import { conflictsFor } from '../lib/availability';
+import { settingsFor } from '../lib/store/types';
 import { authorizationFileName, buildAuthorizationXlsx, validateSheet, type AuthorizationSheet } from '../lib/excel';
 import { whatsappMessage } from '../lib/message';
 import { XLSX_TYPE, downloadBlob, shareFile, whatsappLink } from '../lib/share';
-import { href } from '../router';
+import { go, href } from '../router';
 import { Icon } from '../components/Icon';
 import { useToast } from '../components/Toast';
 import { StayRow, stayDates } from '../components/StayRow';
+import { BottomSheet } from '../components/BottomSheet';
+import { PropertyChips } from '../components/PropertyChips';
+import { defaultStayName } from './ReservationForm';
 import templateUrl from '../assets/plantilla-pescadores.xlsx?url';
 
 interface GuestRow extends Guest {
@@ -32,59 +37,22 @@ const SHEET_ORDER: StayType[] = ['Familiar', 'Alquiler Fijo', 'Alquiler Vacacion
 let seq = 0;
 const nextKey = () => ++seq;
 
-/* ------------------------------------------------------------------ */
-/* Elegir estadía                                                      */
-/* ------------------------------------------------------------------ */
-
-export function PickStayPage() {
-  const { data, today } = useApp();
-  const upcoming = data.reservations
-    .filter((r) => r.status !== 'cancelada' && r.check_out >= today)
-    .sort((a, b) => compareISO(a.check_in, b.check_in));
-  const pending = upcoming.filter((r) => r.auth_status !== 'enviada');
-  const sent = upcoming.filter((r) => r.auth_status === 'enviada');
-  return (
-    <div className="page">
-      <div className="row">
-        <a className="icon-btn" href={href('/')} aria-label="Volver">
-          <Icon name="arrowLeft" />
-        </a>
-        <h1>¿Para cuál estadía?</h1>
-      </div>
-      <a className="btn btn-primary btn-block" href={href('/reserva/nueva?then=auth')}>
-        <Icon name="plus" /> Estadía nueva
-      </a>
-      <section className="section" aria-labelledby="h-sin">
-        <h2 id="h-sin">Sin autorización enviada</h2>
-        <div className="panel list">
-          {pending.length ? (
-            pending.map((r) => <StayRow key={r.id} r={r} to={`/autorizacion/${r.id}`} />)
-          ) : (
-            <div className="empty">
-              <p className="muted">Todas las estadías próximas ya tienen su autorización enviada.</p>
-            </div>
-          )}
-        </div>
-      </section>
-      {sent.length ? (
-        <section className="section" aria-labelledby="h-env">
-          <h2 id="h-env">Ya enviadas</h2>
-          <div className="panel list">
-            {sent.map((r) => (
-              <StayRow key={r.id} r={r} to={`/autorizacion/${r.id}`} />
-            ))}
-          </div>
-        </section>
-      ) : null}
-    </div>
-  );
+/** "Juan Pérez y 3 más" a partir de las personas cargadas. */
+export function groupName(guests: Guest[]): string {
+  const named = guests.filter((g) => g.full_name.trim());
+  if (!named.length) return '';
+  const first = named.find((g) => !g.is_minor) ?? named[0];
+  return named.length > 1 ? `${first.full_name.trim()} y ${named.length - 1} más` : first.full_name.trim();
 }
 
 /* ------------------------------------------------------------------ */
-/* Autorización de una estadía                                         */
+/* Nueva autorización: fechas + cédulas, sin formularios previos       */
 /* ------------------------------------------------------------------ */
 
-type ReadMode = 'local' | 'ia';
+export function NewAuthorizationPage({ query }: { query: URLSearchParams }) {
+  const qApto = query.get('apto');
+  return <AuthorizationEditor r={null} initialProperty={qApto ?? undefined} />;
+}
 
 export function AuthorizationPage({ id }: { id: string }) {
   const { data } = useApp();
@@ -94,7 +62,7 @@ export function AuthorizationPage({ id }: { id: string }) {
       <div className="page">
         <h1>No encontramos esa estadía</h1>
         <a className="btn btn-secondary" href={href('/autorizacion')}>
-          Elegir otra
+          Nueva autorización
         </a>
       </div>
     );
@@ -102,16 +70,23 @@ export function AuthorizationPage({ id }: { id: string }) {
   return <AuthorizationEditor key={r.id} r={r} />;
 }
 
-function AuthorizationEditor({ r }: { r: Reservation }) {
-  const { data, store, reload, aiEnabled, getAccessToken } = useApp();
-  const toast = useToast();
-  const settings = data.settings;
+type ReadMode = 'local' | 'ia';
 
-  const [guests, setGuests] = useState<GuestRow[]>(() =>
-    r.guests.length ? r.guests.map((g) => ({ ...g, key: nextKey() })) : [],
+function AuthorizationEditor({ r, initialProperty }: { r: Reservation | null; initialProperty?: string }) {
+  const { data, store, reload, aiEnabled, getAccessToken, today, ownId } = useApp();
+  const toast = useToast();
+
+  // estadía (solo editable cuando es nueva)
+  const [checkIn, setCheckIn] = useState(r?.check_in ?? addDays(today, 1));
+  const [checkOut, setCheckOut] = useState(r?.check_out ?? addDays(today, 2));
+  const [propertyId, setPropertyId] = useState(
+    r?.property_id ?? (initialProperty && data.properties.some((p) => p.id === initialProperty) ? initialProperty : ownId),
   );
-  const [vehicles, setVehicles] = useState<VehicleRow[]>(() => r.vehicles.map((v) => ({ ...v, key: nextKey() })));
-  const [stayType, setStayType] = useState<StayType>(r.stay_type);
+  const [pickOpen, setPickOpen] = useState(false);
+
+  const [guests, setGuests] = useState<GuestRow[]>(() => (r?.guests ?? []).map((g) => ({ ...g, key: nextKey() })));
+  const [vehicles, setVehicles] = useState<VehicleRow[]>(() => (r?.vehicles ?? []).map((v) => ({ ...v, key: nextKey() })));
+  const [stayType, setStayType] = useState<StayType>(r?.stay_type ?? 'Alquiler Vacacional');
   const [notes, setNotes] = useState('');
   const [mode, setMode] = useState<ReadMode>(aiEnabled ? 'ia' : 'local');
   const [reading, setReading] = useState<string | null>(null);
@@ -119,15 +94,30 @@ function AuthorizationEditor({ r }: { r: Reservation }) {
   const [pasteText, setPasteText] = useState('');
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
-  const [sentState, setSentState] = useState<'idle' | 'downloaded' | 'shared'>(r.auth_status === 'enviada' ? 'shared' : 'idle');
+  const [sentState, setSentState] = useState<'idle' | 'downloaded' | 'shared'>(r?.auth_status === 'enviada' ? 'shared' : 'idle');
   const [drag, setDrag] = useState(false);
 
   useEffect(() => {
     if (mode === 'local') warmUpOcr();
   }, [mode]);
 
+  const property = data.properties.find((p) => p.id === propertyId);
+  const settings = settingsFor(data.settings, property);
   const people = guests.filter((g) => g.full_name.trim() || g.cedula.trim());
   const room = MAX_GUESTS - guests.length;
+  const nights = isValidISO(checkIn) && isValidISO(checkOut) ? nightsBetween(checkIn, checkOut) : 0;
+
+  // Si ya hay una estadía registrada en esas fechas, se ofrece usarla en vez de crear otra.
+  const sameDates = useMemo(
+    () =>
+      r || nights < 1
+        ? []
+        : conflictsFor({ id: '__new', property_id: propertyId, check_in: checkIn, check_out: checkOut, status: 'confirmada' }, data.reservations),
+    [r, nights, propertyId, checkIn, checkOut, data.reservations],
+  );
+  const pendingStays = data.reservations
+    .filter((x) => x.status !== 'cancelada' && x.check_out >= today && x.auth_status !== 'enviada')
+    .sort((a, b) => compareISO(a.check_in, b.check_in));
 
   function addGuests(list: Partial<GuestRow>[]) {
     setGuests((cur) => {
@@ -144,15 +134,13 @@ function AuthorizationEditor({ r }: { r: Reservation }) {
         if (blank) Object.assign(blank, row, { key: blank.key });
         else if (merged.length < MAX_GUESTS) merged.push(row);
       }
-      return [...merged];
+      return merged;
     });
   }
 
-  const updateGuest = (key: number, patch: Partial<GuestRow>) =>
-    setGuests((cur) => cur.map((g) => (g.key === key ? { ...g, ...patch, review: false } : g)));
+  const updateGuest = (key: number, patch: Partial<GuestRow>) => setGuests((cur) => cur.map((g) => (g.key === key ? { ...g, ...patch, review: false } : g)));
   const removeGuest = (key: number) => setGuests((cur) => cur.filter((g) => g.key !== key));
-  const updateVehicle = (key: number, patch: Partial<VehicleRow>) =>
-    setVehicles((cur) => cur.map((v) => (v.key === key ? { ...v, ...patch, review: false } : v)));
+  const updateVehicle = (key: number, patch: Partial<VehicleRow>) => setVehicles((cur) => cur.map((v) => (v.key === key ? { ...v, ...patch, review: false } : v)));
   const removeVehicle = (key: number) => setVehicles((cur) => cur.filter((v) => v.key !== key));
 
   async function readPhotos(files: File[]) {
@@ -163,29 +151,30 @@ function AuthorizationEditor({ r }: { r: Reservation }) {
       else ok.push(f);
     }
     if (!ok.length) return;
-    if (ok.length > room) toast(`La planilla admite ${MAX_GUESTS} personas; se leerán las primeras ${Math.max(room, 0)}.`, 'bad');
-    const batch = ok.slice(0, Math.max(room, 0));
-    for (let i = 0; i < batch.length; i++) {
-      const file = batch[i];
-      setReading(`Leyendo cédula ${i + 1} de ${batch.length}${mode === 'ia' ? ' con IA' : ''}…`);
+    if (room <= 0) return toast(`La planilla admite ${MAX_GUESTS} personas.`, 'bad');
+    let total = 0;
+    for (let i = 0; i < ok.length; i++) {
+      const file = ok[i];
+      setReading(`Leyendo foto ${i + 1} de ${ok.length}${mode === 'ia' ? ' con IA' : ''}…`);
       const thumb = await thumbnail(file).catch(() => undefined);
       try {
+        let found: { full_name: string; cedula: string }[];
         if (mode === 'ia') {
           const token = await getAccessToken();
           if (!token) throw new Error('Inicia sesión para usar la lectura con IA.');
-          const found = await readCedulaAI(file, token);
-          if (found.length) addGuests(found.map((g) => ({ ...g, thumb, review: true })));
-          else addGuests([{ full_name: '', cedula: '', thumb, review: true }]);
+          found = await readCedulaAI(file, token);
         } else {
-          const res = await readCedulaLocal(file);
-          addGuests([{ full_name: res.full_name, cedula: res.cedula, thumb, review: true }]);
+          found = await readCedulasLocal(file, (msg) => setReading(msg));
         }
+        total += found.length;
+        addGuests(found.length ? found.map((g) => ({ ...g, is_minor: false, thumb, review: true })) : [{ full_name: '', cedula: '', thumb, review: true }]);
       } catch (e) {
         toast((e as Error).message || 'No se pudo leer la foto. Escribe los datos.', 'bad');
         addGuests([{ full_name: '', cedula: '', thumb, review: true }]);
       }
     }
     setReading(null);
+    if (total > ok.length) toast(`Encontré ${total} cédulas en ${ok.length === 1 ? 'la foto' : `${ok.length} fotos`}. Revísalas.`);
   }
 
   async function readPlatePhoto(file: File) {
@@ -236,12 +225,36 @@ function AuthorizationEditor({ r }: { r: Reservation }) {
     guests: people.map((g) => ({ full_name: g.full_name.trim(), cedula: g.cedula.trim(), is_minor: g.is_minor })),
     vehicles: vehicles.filter((v) => v.plate.trim() || v.description.trim()).map((v) => ({ description: v.description.trim(), plate: normalizePlate(v.plate) })),
     stayType,
-    checkIn: r.check_in,
-    checkOut: r.check_out,
+    checkIn,
+    checkOut,
     notes,
   };
 
-  async function buildFile(): Promise<File | null> {
+  /** Crea la estadía si es nueva y guarda personas y vehículos. Devuelve el id. */
+  async function persist(): Promise<string> {
+    let id = r?.id;
+    if (!id) {
+      id = await store.saveReservation({
+        property_id: propertyId,
+        contact_name: groupName(sheet.guests) || defaultStayName(checkIn),
+        contact_phone: '',
+        channel: 'whatsapp',
+        check_in: checkIn,
+        check_out: checkOut,
+        stay_type: stayType,
+        status: 'confirmada',
+        total_usd: 0,
+        paid_usd: 0,
+        notes: '',
+      });
+    } else if (stayType !== r!.stay_type) {
+      await store.saveReservation({ ...r!, stay_type: stayType });
+    }
+    await store.saveAuthorization(id, sheet.guests, sheet.vehicles);
+    return id;
+  }
+
+  async function buildFile(): Promise<{ file: File; id: string } | null> {
     const errs = validateSheet(sheet);
     sheet.guests.forEach((g) => {
       if (g.cedula && !isValidCedula(g.cedula)) errs.push(`La cédula de ${g.full_name || 'una persona'} no parece válida (${g.cedula}).`);
@@ -251,38 +264,44 @@ function AuthorizationEditor({ r }: { r: Reservation }) {
       if (!isValidPlate(v.plate)) errs.push(`Revisa la placa del vehículo ${i + 1}.`);
       if (v.description.length < 2) errs.push(`Escribe modelo y color del vehículo ${i + 1}.`);
     });
+    if (!r && sameDates.some((c) => c.status === 'confirmada'))
+      errs.push('Ya hay una estadía confirmada en esas fechas. Usa esa estadía (botón de arriba) o cambia las fechas.');
     setErrors(errs);
     if (errs.length) {
-      document.getElementById('errores')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      requestAnimationFrame(() => document.getElementById('errores')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
       return null;
     }
-    await store.saveAuthorization(r.id, sheet.guests, sheet.vehicles);
-    if (stayType !== r.stay_type) {
-      await store.saveReservation({ ...r, stay_type: stayType });
-    }
+    const id = await persist();
     const template = await fetch(templateUrl).then((res) => {
       if (!res.ok) throw new Error('No se pudo cargar la planilla.');
       return res.arrayBuffer();
     });
     const buf = await buildAuthorizationXlsx(template, sheet);
-    return new File([buf], authorizationFileName(sheet), { type: XLSX_TYPE });
+    return { file: new File([buf], authorizationFileName(sheet), { type: XLSX_TYPE }), id };
+  }
+
+  const msg = whatsappMessage({ settings, checkIn, checkOut, guests: sheet.guests, vehicles: sheet.vehicles });
+
+  async function finish(id: string) {
+    await reload();
+    if (!r) go(`/autorizacion/${id}`, { replace: true });
   }
 
   async function onSend() {
     setBusy(true);
     try {
-      const file = await buildFile();
-      if (!file) return;
-      const result = await shareFile(file, whatsappMessage({ settings, checkIn: r.check_in, checkOut: r.check_out, guests: sheet.guests, vehicles: sheet.vehicles }));
+      const built = await buildFile();
+      if (!built) return;
+      const result = await shareFile(built.file, msg);
       if (result === 'shared') {
-        await store.markSent(r.id);
+        await store.markSent(built.id);
         setSentState('shared');
         toast('Autorización enviada');
       } else if (result === 'downloaded') {
         setSentState('downloaded');
         toast('Excel descargado. Adjúntalo en el chat de la administradora.');
       }
-      await reload();
+      await finish(built.id);
     } catch (e) {
       toast((e as Error).message || 'No se pudo generar la planilla.', 'bad');
     } finally {
@@ -293,12 +312,12 @@ function AuthorizationEditor({ r }: { r: Reservation }) {
   async function onDownload() {
     setBusy(true);
     try {
-      const file = await buildFile();
-      if (!file) return;
-      downloadBlob(file, file.name);
+      const built = await buildFile();
+      if (!built) return;
+      downloadBlob(built.file, built.file.name);
       setSentState((s) => (s === 'shared' ? s : 'downloaded'));
-      await reload();
       toast('Excel descargado');
+      await finish(built.id);
     } catch (e) {
       toast((e as Error).message || 'No se pudo generar la planilla.', 'bad');
     } finally {
@@ -307,6 +326,7 @@ function AuthorizationEditor({ r }: { r: Reservation }) {
   }
 
   async function onMarkSent() {
+    if (!r) return;
     try {
       await store.markSent(r.id);
       setSentState('shared');
@@ -317,59 +337,86 @@ function AuthorizationEditor({ r }: { r: Reservation }) {
     }
   }
 
-  const n = nightsBetween(r.check_in, r.check_out);
-  const msg = whatsappMessage({ settings, checkIn: r.check_in, checkOut: r.check_out, guests: sheet.guests, vehicles: sheet.vehicles });
-
   return (
     <div className="page">
-      <div className="row">
-        <a className="icon-btn" href={href(`/reserva/${r.id}`)} aria-label="Volver a la estadía">
+      <div className="page-head">
+        <a className="icon-btn" href={href(r ? `/reserva/${r.id}` : '/')} aria-label="Volver">
           <Icon name="arrowLeft" />
         </a>
-        <div style={{ minWidth: 0 }}>
-          <h1>Autorización</h1>
-          <p className="muted small">
-            {r.contact_name} · {stayDates(r)}
-          </p>
+        <div className="grow">
+          <h1>{r ? 'Autorización' : 'Nueva autorización'}</h1>
+          {r ? (
+            <div className="sub">
+              {r.contact_name} · {stayDates(r)}
+              {property && property.id !== ownId ? ` · ${propertyLabel(property)}` : ''}
+            </div>
+          ) : null}
         </div>
       </div>
 
-      {r.status === 'tentativa' ? (
+      {r?.status === 'tentativa' ? (
         <div className="notice notice-warn">
           <Icon name="info" />
           <span>Esta estadía está como tentativa. Confírmala antes de enviar la autorización.</span>
         </div>
       ) : null}
 
+      {/* ---------------- ¿Cuándo llegan? (solo si es nueva) ---------------- */}
+      {!r ? (
+        <section className="section" aria-labelledby="h-cuando">
+          <div className="section-head">
+            <h2 id="h-cuando">¿Cuándo llegan?</h2>
+            {pendingStays.length ? (
+              <button className="btn btn-ghost btn-small" type="button" onClick={() => setPickOpen(true)}>
+                Ya la registré
+              </button>
+            ) : null}
+          </div>
+          <div className="date-pair">
+            <div className="field">
+              <label htmlFor="a-in">Entrada</label>
+              <input id="a-in" className="input" type="date" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} />
+            </div>
+            <span className="arrow" aria-hidden="true">
+              <Icon name="arrowLeft" />
+            </span>
+            <div className="field">
+              <label htmlFor="a-out">Salida</label>
+              <input id="a-out" className="input" type="date" min={checkIn} value={checkOut} aria-invalid={nights < 1} onChange={(e) => setCheckOut(e.target.value)} />
+            </div>
+          </div>
+          <p className="hint">
+            {nights >= 1 ? `${nights} ${nights === 1 ? 'noche' : 'noches'} · ${formatLong(checkIn)}` : 'La salida debe ser después de la entrada.'}
+          </p>
+          <PropertyChips properties={data.properties} value={propertyId} onChange={setPropertyId} name="auth-apto" />
+          {sameDates.length ? (
+            <div className="notice notice-warn">
+              <Icon name="info" />
+              <div className="stack" style={{ gap: 8 }}>
+                <span>
+                  Ya hay {sameDates.length === 1 ? 'una estadía' : 'estadías'} en esas fechas: <strong>{sameDates.map((c) => c.contact_name).join(', ')}</strong>.
+                </span>
+                <div className="row-wrap">
+                  {sameDates.map((c) => (
+                    <a key={c.id} className="btn btn-secondary btn-small" href={href(`/autorizacion/${c.id}`)}>
+                      Usar {c.contact_name.split(' ')[0]}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       {/* ---------------- Personas ---------------- */}
       <section className="section" aria-labelledby="h-personas">
         <div className="section-head">
           <h2 id="h-personas">Personas</h2>
-          <span className="muted small">
-            {people.length} de {MAX_GUESTS}
+          <span className="badge badge-brand num">
+            {people.length} / {MAX_GUESTS}
           </span>
         </div>
-
-        <div className="segmented" role="radiogroup" aria-label="Cómo leer las cédulas">
-          <label className="chip">
-            <input type="radio" name="mode" checked={mode === 'local'} onChange={() => setMode('local')} />
-            <span>
-              <Icon name="camera" style={{ width: 18, height: 18 }} /> Leer en el teléfono
-            </span>
-          </label>
-          <label className="chip" title={aiEnabled ? undefined : 'Requiere iniciar sesión y la API key configurada en Netlify'}>
-            <input type="radio" name="mode" checked={mode === 'ia'} disabled={!aiEnabled} onChange={() => setMode('ia')} />
-            <span>
-              <Icon name="sparkle" style={{ width: 18, height: 18 }} /> Leer con IA
-            </span>
-          </label>
-        </div>
-        <p className="hint">
-          {mode === 'ia'
-            ? 'Más precisa. La foto se envía a la IA solo para leerla y no se guarda.'
-            : 'Gratis y privada: la foto no sale del teléfono. Con fotos movidas o con reflejo puede fallar; revisa siempre.'}
-          {!aiEnabled ? ' La lectura con IA se activa al configurar la API key en Netlify.' : ''}
-        </p>
 
         <label
           className="dropzone"
@@ -381,11 +428,36 @@ function AuthorizationEditor({ r }: { r: Reservation }) {
           onDragLeave={() => setDrag(false)}
           onDrop={onDrop}
         >
-          <Icon name="idcard" />
+          <span className="dz-icon">
+            <Icon name="camera" />
+          </span>
           <strong>Subir fotos de las cédulas</strong>
-          <span className="small">Puedes elegir varias a la vez desde la galería o WhatsApp</span>
-          <input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple onChange={onFiles} disabled={!!reading || room <= 0} aria-label="Subir fotos de las cédulas" />
+          <span className="small">Varias a la vez, o dos cédulas en una misma foto</span>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+            multiple
+            onChange={onFiles}
+            disabled={!!reading || room <= 0}
+            aria-label="Subir fotos de las cédulas"
+          />
         </label>
+
+        <div className="segmented" role="radiogroup" aria-label="Cómo leer las cédulas">
+          <label className="chip">
+            <input type="radio" name="mode" checked={mode === 'local'} onChange={() => setMode('local')} />
+            <span>Leer en el teléfono</span>
+          </label>
+          <label className="chip" title={aiEnabled ? undefined : 'Requiere iniciar sesión y la API key configurada en Netlify'}>
+            <input type="radio" name="mode" checked={mode === 'ia'} disabled={!aiEnabled} onChange={() => setMode('ia')} />
+            <span>
+              <Icon name="sparkle" style={{ width: 17, height: 17 }} /> Con IA
+            </span>
+          </label>
+        </div>
+        <p className="hint">
+          {mode === 'ia' ? 'Más precisa. La foto se envía a la IA solo para leerla y no se guarda.' : 'Gratis y privada: la foto no sale del teléfono. Revisa siempre lo leído.'}
+        </p>
 
         {reading ? (
           <div className="reading" role="status">
@@ -394,16 +466,16 @@ function AuthorizationEditor({ r }: { r: Reservation }) {
         ) : null}
 
         <div className="row-wrap">
-          <button className="btn btn-secondary btn-small" type="button" onClick={() => setPasteOpen((o) => !o)} aria-expanded={pasteOpen}>
+          <button className="btn btn-soft btn-small" type="button" onClick={() => setPasteOpen((o) => !o)} aria-expanded={pasteOpen}>
             <Icon name="clipboard" /> Pegar texto de WhatsApp
           </button>
           <button
-            className="btn btn-secondary btn-small"
+            className="btn btn-soft btn-small"
             type="button"
             disabled={room <= 0}
             onClick={() => setGuests((cur) => [...cur, { key: nextKey(), full_name: '', cedula: '', is_minor: false }])}
           >
-            <Icon name="plus" /> Agregar persona
+            <Icon name="plus" /> Agregar a mano
           </button>
         </div>
 
@@ -433,21 +505,15 @@ function AuthorizationEditor({ r }: { r: Reservation }) {
               <GuestEditor key={g.key} g={g} index={i} onChange={(p) => updateGuest(g.key, p)} onRemove={() => removeGuest(g.key)} />
             ))}
           </div>
-        ) : (
-          <div className="panel empty">
-            <p className="muted">
-              Sube las fotos que te mandaron, pega el mensaje con los datos o agrégalos a mano. Para los niños sin cédula basta el nombre.
-            </p>
-          </div>
-        )}
+        ) : null}
       </section>
 
       {/* ---------------- Vehículos ---------------- */}
       <section className="section" aria-labelledby="h-veh">
         <div className="section-head">
           <h2 id="h-veh">Vehículos</h2>
-          <span className="muted small">
-            {vehicles.length} de {MAX_VEHICLES}
+          <span className="badge num">
+            {vehicles.length} / {MAX_VEHICLES}
           </span>
         </div>
         {vehicles.length ? (
@@ -456,10 +522,12 @@ function AuthorizationEditor({ r }: { r: Reservation }) {
               <VehicleEditor key={v.key} v={v} index={i} onChange={(p) => updateVehicle(v.key, p)} onRemove={() => removeVehicle(v.key)} />
             ))}
           </div>
-        ) : null}
+        ) : (
+          <p className="hint">Si llegan sin carro, deja esta parte vacía.</p>
+        )}
         <div className="row-wrap">
           <button
-            className="btn btn-secondary btn-small"
+            className="btn btn-soft btn-small"
             type="button"
             disabled={vehicles.length >= MAX_VEHICLES}
             onClick={() => setVehicles((cur) => [...cur, { key: nextKey(), description: '', plate: '' }])}
@@ -481,13 +549,16 @@ function AuthorizationEditor({ r }: { r: Reservation }) {
             />
           </label>
         </div>
-        {!vehicles.length ? <p className="hint">Si llegan sin carro, deja esta parte vacía.</p> : null}
       </section>
 
       {/* ---------------- Planilla ---------------- */}
-      <section className="section" aria-labelledby="h-plan">
-        <h2 id="h-plan">Planilla</h2>
-        <div className="grid-2">
+      <details className="disclosure">
+        <summary>
+          <Icon name="file" style={{ width: 20, height: 20, color: 'var(--brand)' }} />
+          Planilla: {stayType}
+          <Icon name="chevronRight" className="chev" />
+        </summary>
+        <div className="disclosure-body">
           <div className="field">
             <label htmlFor="tipo">Tipo de estadía</label>
             <select id="tipo" className="input" value={stayType} onChange={(e) => setStayType(e.target.value as StayType)}>
@@ -497,21 +568,12 @@ function AuthorizationEditor({ r }: { r: Reservation }) {
             </select>
           </div>
           <div className="field">
-            <span className="field-label">Fechas</span>
-            <a className="input" href={href(`/reserva/${r.id}`)} style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'inherit' }}>
-              {formatDMY(r.check_in)} → {formatDMY(r.check_out)}
-            </a>
+            <label htmlFor="obs">Observaciones (opcional)</label>
+            <input id="obs" className="input" maxLength={300} placeholder="Ej: llegan después de las 6 pm" value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
+          <SheetPreview sheet={sheet} nights={nights} />
         </div>
-        <div className="field">
-          <label htmlFor="obs">Observaciones (opcional)</label>
-          <input id="obs" className="input" maxLength={300} placeholder="Ej: llegan después de las 6 pm" value={notes} onChange={(e) => setNotes(e.target.value)} />
-        </div>
-        <details className="panel panel-pad">
-          <summary style={{ cursor: 'pointer', fontWeight: 650 }}>Ver cómo queda la planilla</summary>
-          <SheetPreview sheet={sheet} nights={n} />
-        </details>
-      </section>
+      </details>
 
       {errors.length ? (
         <div id="errores" className="notice notice-bad" role="alert">
@@ -531,39 +593,54 @@ function AuthorizationEditor({ r }: { r: Reservation }) {
           <div className="stack" style={{ gap: 10 }}>
             <span>El Excel quedó en Descargas. Adjúntalo en el chat de la administradora y luego márcala como enviada.</span>
             <div className="row-wrap">
-              {settings.admin_whatsapp ? (
-                <a className="btn btn-whatsapp btn-small" href={whatsappLink(settings.admin_whatsapp, msg)} target="_blank" rel="noopener noreferrer">
-                  <Icon name="send" /> Abrir chat de la administradora
+              {data.settings.admin_whatsapp ? (
+                <a className="btn btn-whatsapp btn-small" href={whatsappLink(data.settings.admin_whatsapp, msg)} target="_blank" rel="noopener noreferrer">
+                  <Icon name="send" /> Abrir chat
                 </a>
               ) : (
                 <a className="btn btn-secondary btn-small" href={href('/ajustes')}>
                   Guardar el WhatsApp de la administradora
                 </a>
               )}
-              <button className="btn btn-secondary btn-small" type="button" onClick={onMarkSent}>
-                <Icon name="check" /> Ya la envié
-              </button>
+              {r ? (
+                <button className="btn btn-secondary btn-small" type="button" onClick={onMarkSent}>
+                  <Icon name="check" /> Ya la envié
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
       ) : null}
 
+      {people.length || r ? (
       <div className="actionbar">
-        {sentState === 'shared' ? (
-          <div className="notice notice-ok" style={{ padding: '8px 12px' }}>
-            <Icon name="check" />
-            <span>
-              Enviada{r.auth_sent_at ? ` el ${formatLong(r.auth_sent_at.slice(0, 10))}` : ''}. Si cambió algo, vuelve a enviarla.
-            </span>
-          </div>
+        {sentState === 'shared' && r?.auth_sent_at ? (
+          <p className="tiny muted" style={{ textAlign: 'center' }}>
+            Enviada el {formatDayMonth(r.auth_sent_at.slice(0, 10))}. Si cambió algo, vuelve a enviarla.
+          </p>
         ) : null}
-        <button className="btn btn-whatsapp btn-block" type="button" onClick={onSend} disabled={busy || !!reading || !people.length}>
+        <button className="btn btn-whatsapp btn-block" type="button" onClick={onSend} disabled={busy || !!reading || !people.length || nights < 1}>
           {busy ? <span className="spinner" /> : <Icon name="send" />} Enviar a la administradora
         </button>
-        <button className="btn btn-ghost btn-block btn-small" type="button" onClick={onDownload} disabled={busy || !!reading || !people.length}>
+        <button className="btn btn-ghost btn-block btn-small" type="button" onClick={onDownload} disabled={busy || !!reading || !people.length || nights < 1}>
           <Icon name="download" /> Solo descargar el Excel
         </button>
       </div>
+      ) : null}
+
+      <BottomSheet open={pickOpen} onClose={() => setPickOpen(false)} label="Elegir estadía registrada">
+        <h2>¿Para cuál estadía?</h2>
+        <div className="panel list">
+          {pendingStays.map((x, i) => {
+            const p = data.properties.find((pp) => pp.id === x.property_id);
+            return (
+              <div key={x.id} style={{ '--i': i } as CSSProperties} onClick={() => setPickOpen(false)}>
+                <StayRow r={x} to={`/autorizacion/${x.id}`} place={p && p.id !== ownId ? propertyLabel(p) : undefined} />
+              </div>
+            );
+          })}
+        </div>
+      </BottomSheet>
     </div>
   );
 }
@@ -612,7 +689,7 @@ function GuestEditor({ g, index, onChange, onRemove }: { g: GuestRow; index: num
           />
         </div>
       </div>
-      <button className="icon-btn remove" type="button" onClick={onRemove} aria-label={`Quitar a la persona ${index + 1}`}>
+      <button className="icon-btn flat remove" type="button" onClick={onRemove} aria-label={`Quitar a la persona ${index + 1}`}>
         <Icon name="x" />
       </button>
       <div className="person-meta">
@@ -633,7 +710,7 @@ function VehicleEditor({ v, index, onChange, onRemove }: { v: VehicleRow; index:
   return (
     <div className="person">
       <span className="person-num" aria-hidden="true">
-        <Icon name="car" style={{ width: 22, height: 22 }} />
+        <Icon name="car" style={{ width: 17, height: 17 }} />
       </span>
       <div className="person-fields">
         <div className="field">
@@ -643,7 +720,7 @@ function VehicleEditor({ v, index, onChange, onRemove }: { v: VehicleRow; index:
           <input
             id={`v-${v.key}-d`}
             className="input"
-            placeholder="Modelo y color · Ej: Toyota Corolla vinotinto"
+            placeholder="Modelo y color · Ej: Corolla vinotinto"
             autoComplete="off"
             maxLength={80}
             value={v.description}
@@ -667,7 +744,7 @@ function VehicleEditor({ v, index, onChange, onRemove }: { v: VehicleRow; index:
           />
         </div>
       </div>
-      <button className="icon-btn remove" type="button" onClick={onRemove} aria-label={`Quitar el vehículo ${index + 1}`}>
+      <button className="icon-btn flat remove" type="button" onClick={onRemove} aria-label={`Quitar el vehículo ${index + 1}`}>
         <Icon name="x" />
       </button>
       {v.thumb || v.review || plateBad ? (
@@ -686,7 +763,7 @@ function SheetPreview({ sheet, nights }: { sheet: AuthorizationSheet; nights: nu
   const rows = Array.from({ length: MAX_GUESTS }, (_, i) => sheet.guests[i]);
   const cars = Array.from({ length: MAX_VEHICLES }, (_, i) => sheet.vehicles[i]);
   return (
-    <div className="sheet" style={{ marginTop: 12 }} aria-label="Vista previa de la planilla">
+    <div className="sheet" aria-label="Vista previa de la planilla">
       <div className="spread">
         <span className="sheet-title">{s.conjunto}</span>
         <span>Fecha: {formatDMY(sheet.emitted)}</span>
@@ -738,9 +815,7 @@ function SheetPreview({ sheet, nights }: { sheet: AuthorizationSheet; nights: nu
           ))}
         </tbody>
       </table>
-      <p className="sheet-line">
-        {SHEET_ORDER.map((t) => `${t} ${t === sheet.stayType ? '[x]' : '[ ]'}`).join('   ')}
-      </p>
+      <p className="sheet-line">{SHEET_ORDER.map((t) => `${t} ${t === sheet.stayType ? '[x]' : '[ ]'}`).join('   ')}</p>
       <p className="sheet-line">
         Fecha Ingreso: {formatDMY(sheet.checkIn)} · Fecha Egreso: {formatDMY(sheet.checkOut)} ({nights} {nights === 1 ? 'noche' : 'noches'})
       </p>

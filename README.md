@@ -1,20 +1,18 @@
-# Pescadores I · Autorizaciones
+# Tu Día en Tucacas
 
-Panel para Oniris (apartamento **N°30**, Conjunto Residencial **JDC Pescadores I**, Tucacas): convierte las fotos de cédulas o el texto que mandan los huéspedes por WhatsApp en la **planilla oficial de autorización** ya rellena, lista para enviarla a la administradora. Además lleva el control de cada estadía: fechas, canal, cobros, choques de fechas y autorizaciones pendientes.
+Página web del apartamento **N°30** del Conjunto Residencial **Pescadores I** (Tucacas) con un **panel de administración** para Oniris dentro de la misma app.
 
-> Fase 1 (esta): autorizaciones + panel de estadías.
-> Fase 2 (siguiente): catálogo de apartamentos aliados con sobreprecio (ej. $100 → $120).
+- **`/` — página pública** (para huéspedes, pensada para el teléfono): fotos, precio, servicios, calendario con las noches libres y ocupadas, y botón para **reservar por WhatsApp** con las fechas y personas ya escritas. Si esas fechas están ocupadas, muestra **otros apartamentos del conjunto libres en esas fechas** (catálogo de aliados) para no perder al cliente.
+- **`/admin` — panel** (con login): autorizaciones de ingreso, calendario, estadías, cobros, apartamentos aliados con su comisión.
 
-## Qué hace
+## Qué hace el panel
 
-- **Inicio**: las próximas 14 noches dibujadas como toldos (cada estadía con el color de su canal) y la lista de **pendientes**: fechas que chocan, autorizaciones sin enviar y saldos por cobrar.
-- **Autorización**:
-  - **Sube las fotos de las cédulas** (varias a la vez). Las lee el teléfono, gratis y sin que la foto salga del equipo. Opcional: **lectura con IA**, más precisa.
-  - **Pega el mensaje de WhatsApp** ("1. Juan Pérez V-12.345.678…") y se reparte solo en personas y vehículo.
-  - Para menores sin cédula basta el nombre. Máximo 7 personas y 2 vehículos, como en la planilla.
-  - **Enviar a la administradora**: genera el Excel oficial (con el logo y el formato original) y abre el menú de compartir del teléfono para elegir WhatsApp. En computadora lo descarga y abre el chat de la administradora con el mensaje listo.
-- **Calendario**: el mes completo con los toldos, en arena las noches libres y una lista de rangos libres para responder rápido si hay disponibilidad.
-- **Estadías**: registro con canal (Airbnb, Stay, Marketplace, Mercado Libre, Instagram, WhatsApp, directo), estado (confirmada/tentativa/cancelada), total y pagado.
+- **Nueva autorización en dos pasos**: fechas y cédulas. Nada más. La estadía se crea sola con el nombre de la primera persona; canal, pago y notas quedan opcionales para después.
+- **Lectura de cédulas**: varias fotos a la vez, **o dos cédulas en una misma foto** (apiladas o lado a lado). En el teléfono, gratis y privado; o con IA si configuras la API key.
+- **Pegar el texto de WhatsApp** ("1. Juan Pérez V-12.345.678…") y se reparte solo en personas y vehículo.
+- **Planilla oficial** de JDC Pescadores I rellena (Excel original con logo) y enviada por WhatsApp a la administradora.
+- **Apartamentos aliados**: precio público, lo que cobra el dueño y **tu comisión por noche** calculada sola; fotos subidas desde el teléfono; publicar u ocultar.
+- **Inicio**: qué pasa hoy en el N°30, próximas noches, pendientes (choques de fechas, autorizaciones sin enviar, saldos por cobrar) y comisiones del mes.
 
 ## Probarlo ya (modo demo)
 
@@ -34,7 +32,12 @@ npm run dev
 ### Conectar la base de datos (Supabase)
 
 1. Crea un proyecto gratis en [supabase.com](https://supabase.com).
-2. **SQL Editor →** pega y ejecuta `supabase/migrations/20261011000000_esquema_inicial.sql`.
+2. **SQL Editor →** pega y ejecuta, **en este orden**, cada archivo de `supabase/migrations/`:
+   1. `20261011000000_esquema_inicial.sql` (reservas, autorizaciones, seguridad)
+   2. `20261012000000_sitio_publico.sql` (página pública y catálogo de aliados)
+   3. `20261012000100_fotos_storage.sql` (fotos de los apartamentos)
+
+   Si ya ejecutaste el primero antes, solo corre el 2 y el 3.
 3. **Authentication → Sign In / Providers → Email:** desactiva **"Allow new users to sign up"** (nadie puede registrarse por su cuenta).
 4. **Authentication → Users → Add user:** crea la cuenta de Oniris (y la tuya) con una contraseña de al menos 12 caracteres.
 5. Opcional (punto 12, bots): **Authentication → Attack Protection → CAPTCHA**.
@@ -68,6 +71,14 @@ select cron.schedule('purga-huespedes', '15 4 * * *', $$select public.purge_old_
 
 Borra cédulas y placas de estadías que terminaron hace más de 60 días. Las estadías y los montos se conservan.
 
+### Fotos del apartamento
+
+En el panel: **Más → Apartamentos y catálogo → Tu apartamento → Fotos → +**. Puedes elegir varias a la vez desde el teléfono; se reducen y se les borra la ubicación antes de subirlas. La primera es la portada de la página. Ahí mismo cambias precio, promoción, servicios, WhatsApp de reservas y enlaces de Airbnb e Instagram.
+
+### Agregar un apartamento aliado
+
+**Más → Apartamentos y catálogo → Agregar apartamento aliado**: número, personas, **precio público** y **lo que cobra el dueño** (la diferencia es tu comisión), fotos y "Publicado". Para marcar sus noches ocupadas, registra estadías eligiendo ese apartamento (la página pública solo muestra que está ocupado, nunca quién).
+
 ## Seguridad
 
 Los 20 puntos de la lista, uno por uno, están en **[SEGURIDAD.md](SEGURIDAD.md)**.
@@ -84,8 +95,9 @@ npm run test:e2e     # Playwright sobre el build real con la CSP de Netlify
 
 ```
 src/
-  pages/        Inicio, Calendario, Estadías, Estadía, Autorización, Ajustes, Login
-  components/   Toldo, tira de 14 noches, calendario, íconos
+  site/         página pública (portada, calendario de fechas, catálogo, WhatsApp)
+  pages/        panel: Inicio, Calendario, Estadías, Autorización, Apartamentos, Más, Login
+  components/   logo, barras de estadía, tira de noches, calendario, hoja inferior, íconos
   lib/          cédulas y placas, Excel, disponibilidad, OCR, IA, compartir
   lib/store/    modo demo (navegador) y Supabase, con la misma interfaz
   assets/       plantilla-pescadores.xlsx (la planilla oficial, limpia)
@@ -94,4 +106,4 @@ supabase/       esquema SQL con RLS
 tests/          e2e (Playwright), base de datos, servidor con cabeceras reales
 ```
 
-Diseño: ver `DESIGN.md` ("Toldos de los cayos") y `PRODUCT.md`.
+Diseño: ver `DESIGN.md` y `PRODUCT.md`.

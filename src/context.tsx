@@ -3,6 +3,8 @@ import type { AppData, DataStore } from './lib/store';
 
 export interface AppCtx {
   data: AppData;
+  /** Id del apartamento propio (N°30) */
+  ownId: string;
   store: DataStore;
   today: string;
   reload: () => Promise<void>;

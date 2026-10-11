@@ -1,105 +1,113 @@
 ---
-name: Pescadores I · Autorizaciones
-description: Toldos de los cayos — panel de estadías y autorizaciones de ingreso para el N°30.
+name: Tu Día en Tucacas
+description: Página del apartamento N°30 en Pescadores I y panel de autorizaciones, pensado primero para el teléfono.
 colors:
-  ground: "#f3f7f7"
+  brand: "#1d7f68"
+  brand-2: "#14706c"
+  brand-deep: "#0e4f4a"
+  brand-ink: "#0b3a36"
+  brand-soft: "#e2f2ec"
+  brand-softer: "#f0f8f5"
+  sea: "#17a3a0"
+  sun: "#f4b63f"
+  sun-soft: "#fdf1d6"
+  sun-ink: "#6d4a00"
+  coral: "#d8613c"
+  ground: "#f4f7f6"
   surface: "#ffffff"
-  surface-2: "#eaf1f2"
-  line: "#d9e3e5"
-  line-strong: "#b9c8cc"
-  ink: "#0f1f29"
-  ink-2: "#33444f"
-  muted: "#52636d"
-  lona: "#1b3fb5"
-  lona-ink: "#11297a"
-  lona-soft: "#e5ebfb"
-  lona-on: "#ffffff"
-  lona-on-2: "#cfdaff"
-  sand: "#ece2cb"
-  ok: "#13703a"
-  ok-soft: "#e3f3e9"
-  warn: "#9a4a06"
-  warn-soft: "#fcefd9"
+  surface-2: "#edf3f1"
+  line: "#dde7e4"
+  line-strong: "#bfd0cb"
+  ink: "#0f2724"
+  ink-2: "#33504b"
+  muted: "#56706b"
+  ok: "#157046"
+  warn: "#965006"
   bad: "#b42318"
-  bad-soft: "#fdeceb"
-  ch-airbnb: "#c63b2f"
-  ch-stay: "#6a3dc2"
-  ch-marketplace: "#0d63c4"
+  ch-airbnb: "#e0584b"
+  ch-stay: "#6a4bc4"
+  ch-marketplace: "#1d6fd1"
   ch-mercadolibre: "#f1c40f"
-  ch-mercadolibre-ink: "#2b2200"
-  ch-instagram: "#b1287a"
-  ch-whatsapp: "#127a45"
-  ch-directo: "#0e6b70"
-  ch-otro: "#56616d"
+  ch-instagram: "#c23a86"
+  ch-whatsapp: "#18924f"
+  ch-directo: "#14706c"
+  ch-otro: "#5d6b74"
 typography:
+  display-hero:
+    fontFamily: "Bricolage Grotesque Variable, Onest Variable, system-ui, sans-serif"
+    fontSize: "clamp(2.25rem, 10vw, 3.25rem)"
+    fontWeight: 800
+    lineHeight: 0.98
+    letterSpacing: "-0.035em"
   heading-1:
-    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif"
-    fontSize: "1.5rem"
+    fontFamily: "Bricolage Grotesque Variable, Onest Variable, system-ui, sans-serif"
+    fontSize: "1.75rem"
     fontWeight: 750
-    lineHeight: 1.2
+    lineHeight: 1.12
     letterSpacing: "-0.02em"
   heading-2:
-    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif"
-    fontSize: "1.125rem"
+    fontFamily: "Bricolage Grotesque Variable, Onest Variable, system-ui, sans-serif"
+    fontSize: "1.25rem"
     fontWeight: 700
-    lineHeight: 1.2
-    letterSpacing: "-0.01em"
+    lineHeight: 1.12
+  number:
+    fontFamily: "Bricolage Grotesque Variable, Onest Variable, system-ui, sans-serif"
+    fontWeight: 750
+    letterSpacing: "-0.03em"
   body:
-    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif"
+    fontFamily: "Onest Variable, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
     fontSize: "1rem"
     fontWeight: 400
-    lineHeight: 1.45
+    lineHeight: 1.5
   label:
-    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif"
+    fontFamily: "Onest Variable, system-ui, sans-serif"
     fontSize: "0.875rem"
     fontWeight: 650
-    lineHeight: 1.3
-  stencil-number:
-    fontFamily: "Big Shoulders Stencil Display, system-ui, sans-serif"
-    fontSize: "1.5rem"
-    fontWeight: 800
-    lineHeight: 1
 rounded:
-  awning: "7px"
-  sm: "10px"
-  button: "12px"
-  md: "14px"
+  sm: "12px"
+  button: "14px"
+  md: "16px"
+  lg: "22px"
+  hero: "28px"
   pill: "999px"
 spacing:
   gutter: "16px"
   group: "12px"
-  section: "28px"
+  section: "26px"
   tap: "48px"
 components:
   button-primary:
-    backgroundColor: "{colors.lona}"
-    textColor: "{colors.lona-on}"
+    backgroundColor: "{colors.brand}"
+    textColor: "{colors.surface}"
     rounded: "{rounded.button}"
-    height: "48px"
-    padding: "0 18px"
+    height: "50px"
   button-whatsapp:
     backgroundColor: "{colors.ch-whatsapp}"
-    textColor: "{colors.lona-on}"
+    textColor: "{colors.surface}"
     rounded: "{rounded.button}"
-    height: "48px"
-  button-secondary:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.ink}"
+    height: "50px"
+  button-sun:
+    backgroundColor: "{colors.sun}"
+    textColor: "{colors.brand-ink}"
     rounded: "{rounded.button}"
-    height: "48px"
+  button-soft:
+    backgroundColor: "{colors.brand-soft}"
+    textColor: "{colors.brand-ink}"
+    rounded: "{rounded.sm}"
   chip-selected:
-    backgroundColor: "{colors.lona}"
-    textColor: "{colors.lona-on}"
+    backgroundColor: "{colors.brand-ink}"
+    textColor: "{colors.surface}"
     rounded: "{rounded.pill}"
     height: "40px"
+  fab:
+    backgroundColor: "{colors.brand}"
+    textColor: "{colors.surface}"
+    size: "58px"
   input:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
     rounded: "{rounded.sm}"
-    height: "48px"
-  masthead:
-    backgroundColor: "{colors.lona}"
-    textColor: "{colors.lona-on}"
+    height: "50px"
   panel:
     backgroundColor: "{colors.surface}"
     rounded: "{rounded.md}"
@@ -107,45 +115,46 @@ components:
 
 ## Overview
 
-**Toldos de los cayos.** Each stay is a striped canvas awning stretched over the nights it occupies, like the rows of rented sombrillas at Cayo Sombrero. The working screens stay plain and familiar (tab bar on the phone, side rail on desktop, lists, standard inputs); the world only lends four things: the lona-blue masthead with its scalloped hem, the channel-coloured striped awnings, sand for free nights, and stencil numerals for day numbers. Light only: Oniris uses it outdoors in Tucacas sunlight.
+The brand comes from the owners' own logo: white line art (palm, waves, sun, seagull, a winding road) on a green-to-teal gradient. Everything is built for the phone first, outdoors in Tucacas sunlight: light theme, large tap targets, primary actions within thumb reach. Two surfaces share one system: the public page (persuade: get a booking on WhatsApp) and the admin panel (operate: authorizations and stays in two taps).
 
 ## Colors
 
-- **Ground** `#f3f7f7` is a cool sunlit white, never cream. Panels are pure white on it.
-- **Lona** `#1b3fb5` owns the masthead, primary actions, selection and focus. It is the one committed field colour.
-- **Sand** `#ece2cb` means "free night" and nothing else (calendar cells, occupancy track).
-- **Channel canvases** colour every awning and the stripe flag on list rows: Airbnb coral, Stay violet, Marketplace blue, Mercado Libre yellow (dark ink on it), Instagram magenta, WhatsApp green, Directo teal, Otro slate. Text on them is white except Mercado Libre.
-- **States** sit on top only where they carry meaning: bad red for date conflicts and invalid data, warn amber for unsent authorizations and balances due, ok green for sent / paid.
+- **Brand gradient** `#1d7f68 → #14706c → #0e4f4a` owns the hero, the "today" card, the brand mark, the floating action button and primary buttons.
+- **Ground** `#f4f7f6` is a cool mint-white; panels are pure white on it.
+- **Sun** `#f4b63f` marks the one thing to tap on the hero ("Ver disponibilidad"), promotions and commissions.
+- **Coral** `#d8613c` only marks occupied nights (diagonal hatch + strikethrough) on the public calendar.
+- **Channel colors** identify where a stay came from (bars in the calendar, dots, list flags). Never decorative.
+- States (ok / warn / bad) only where they carry meaning: sent, pending, conflicts.
 
 ## Typography
 
-One workhorse system sans for everything readable, tabular numerals everywhere. Big Shoulders Stencil Display (self-hosted, weight 800) is reserved for numerals that behave like painted umbrella numbers: calendar day numbers, the strip's dates, the unit number in the masthead, row numbers in the authorization sheet. Never for words, labels or buttons.
+Bricolage Grotesque (variable, self-hosted) for headings and every number that matters (prices, dates, stats, counters): heavy, slightly condensed, with character. Onest (variable, self-hosted) for all running text, labels, inputs and buttons. Tabular numerals everywhere.
 
 ## Layout
 
-Phone first at 390px with a 16px gutter: masthead, content column, fixed bottom tab bar (64px + safe area) and the primary "Nueva autorización" docked above it. From 900px the tab bar becomes a left rail (232px) holding the primary action, and content sits beside it at 34px padding. Sections are separated by 28px; groups inside by 12–14px. Tap targets are at least 44px, primary controls 48px.
+Single column, 560px max, 16px gutters. Admin: sticky translucent top bar, bottom tab bar with a raised central "+" (new authorization), sticky action bar inside flows, bottom sheets for secondary choices. Public: sticky header, full-bleed rounded hero, sections separated by 34px, a fixed booking bar with price and the next action.
 
 ## Elevation & Depth
 
-Two soft shadows only: `--shadow` for panels and `--shadow-lift` for floating bars, hovered awnings and toasts. Awnings carry their own short drop shadow so they read as canvas above the sand. No zero-blur offset shadows.
+Soft two-layer shadows only (`--shadow` for panels, `--shadow-lift` for floating bars and sheets). Colored glows only under brand/WhatsApp buttons and the FAB. No zero-blur offset shadows.
 
 ## Shapes
 
-Panels 14px, buttons 12px, inputs 10px, chips and badges are pills. Awnings: 7px top corners, 3px bottom, with a 9px striped band on top; a cut edge (stay continuing past the visible range) loses its radius on that side.
+Rounded and friendly: inputs 12px, buttons 14px, panels 16px, hero and today card 22–28px, chips and badges are pills. Stay bars are 9px pills; a cut edge (stay continuing outside the visible range) loses its radius on that side.
 
 ## Components
 
-- **Awning** (`.awning`): link to the stay; striped band + solid body in the channel colour; tentative = faded stripes, tinted body, dashed outline; conflict = 2.5px red outline plus alert icon. Positioned on a half-day grid: from the afternoon of check-in to the morning of check-out, so same-day turnover shares a lane.
-- **Strip**: next 14 nights in the masthead, the signature on Inicio.
-- **List item** with a vertical stripe flag in the channel colour, title, sub line, badges, amount, chevron.
-- **Person row** in the authorization: stencil number, name + cédula inputs, "Menor sin cédula" checkbox, thumbnail of the photo read, "Revisa lo leído" badge until edited.
-- **Action bar**: sticky translucent panel holding the flow's primary and secondary actions.
+- **Stay bar** (`.stay`): channel color, from the afternoon of check-in to the morning of check-out on a half-day grid, so same-day turnover shares a lane. Tentative = tinted with diagonal hatch; conflict = red outline + alert icon.
+- **Range calendar** (public): tap check-in, then check-out; selection is a brand capsule; busy nights hatched in coral and struck through.
+- **Dropzone** for ID photos with a camera tile; "Revisa lo leído" badge on every machine-read row until edited.
+- **Chips** for single and multi choice (channel, status, property, amenities), horizontally scrollable on the phone.
+- **Switch** for publish / hide; **stepper** for guests.
 
 ## Do's and Don'ts
 
-- Do keep stripes on awnings, list flags and the masthead hem only; every other surface is flat white or ground.
-- Do show every machine-read value as editable with a "Revisa" badge; nothing leaves without the owner seeing it.
-- Do use the channel colour only to identify the channel, never as decoration.
-- Don't use the stencil face for text, labels or buttons.
-- Don't add a dark theme by default; the use scene is outdoor daylight.
-- Don't put eyebrows above headings or hard offset shadows on buttons.
+- Do keep the brand gradient for the hero moments (hero, today card, FAB, brand mark); everything else is white or ground.
+- Do show every machine-read value as editable and flagged for review.
+- Do keep guest data out of the public page: only free/busy nights are public.
+- Don't put eyebrows above headings or use offset block shadows.
+- Don't use the display face for long text.
+- Don't add a dark theme by default; the scene is outdoor daylight.
