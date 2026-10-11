@@ -3,14 +3,17 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Reservation } from '../types';
 import { cleanText } from '../sanitize';
 import { formatCedula } from '../cedula';
+import { cleanSupabaseKey, cleanSupabaseUrl } from '../supabaseConfig';
 import type { AppData, DataStore } from './types';
 import { DEFAULT_SETTINGS, friendlyError } from './types';
 import { sanitizeGuests, sanitizeReservation, sanitizeVehicles } from './validate';
 
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+const url = cleanSupabaseUrl(import.meta.env.VITE_SUPABASE_URL as string | undefined);
+const anon = cleanSupabaseKey(import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined);
 
-export const supabaseConfigured = !!(url && anon && /^https:\/\//.test(url));
+export const supabaseConfigured = !!(url && anon);
+/** Proyecto al que apunta la app (es público; sirve para verificar la configuración). */
+export const supabaseHost = url ? new URL(url).host : '';
 
 let client: SupabaseClient | null = null;
 export function getSupabase(): SupabaseClient {

@@ -5,6 +5,7 @@ import type { Config, Context } from '@netlify/functions';
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { bearerToken, checkImagePayload, cleanPersonas } from '../lib/imagen';
+import { cleanSupabaseKey, cleanSupabaseUrl } from '../../src/lib/supabaseConfig';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
@@ -33,8 +34,8 @@ const SCHEMA = {
 
 export default async (req: Request, _context: Context) => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const supabaseAnon = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  const supabaseUrl = cleanSupabaseUrl(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
+  const supabaseAnon = cleanSupabaseKey(process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY);
   const enabled = !!(apiKey && supabaseUrl && supabaseAnon);
 
   if (req.method === 'GET') return json(200, { enabled });
