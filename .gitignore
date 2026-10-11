@@ -1,0 +1,15 @@
+node_modules
+dist
+.netlify
+public/ocr
+.env
+.env.*
+!.env.example
+coverage
+test-results
+playwright-report
+.impeccable/review
+.impeccable/questions
+*.log
+.DS_Store
+*.traineddata

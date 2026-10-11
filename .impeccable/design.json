@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-11T06:40:00Z",
+  "title": "Design System: Pescadores I · Autorizaciones",
+  "extensions": {
+    "colorMeta": {
+      "lona": { "role": "primary", "displayName": "Lona azul", "tonalRamp": ["#e5ebfb", "#cfdaff", "#4f6fd6", "#1b3fb5", "#11297a"] },
+      "ground": { "role": "neutral", "displayName": "Arena soleada fría" },
+      "sand": { "role": "accent", "displayName": "Arena (noche libre)" }
+    },
+    "typographyMeta": {
+      "stencil-number": { "displayName": "Números de sombrilla", "purpose": "Solo numerales: días del calendario, fechas de la tira, N° del inmueble, número de fila." }
+    },
+    "shadows": [
+      { "name": "shadow", "value": "0 1px 2px rgba(15,31,41,0.06), 0 4px 14px rgba(15,31,41,0.06)", "purpose": "Paneles" },
+      { "name": "shadow-lift", "value": "0 2px 4px rgba(15,31,41,0.08), 0 12px 28px rgba(15,31,41,0.12)", "purpose": "Barras flotantes, toldo en hover, avisos" }
+    ],
+    "motion": [
+      { "name": "ease-out", "value": "cubic-bezier(0.23, 1, 0.32, 1)", "purpose": "Entradas y respuesta a la presión" },
+      { "name": "press", "value": "transform 140ms, scale(0.97)", "purpose": "Botones al tocar" },
+      { "name": "page-in", "value": "220ms ease-out, translateY(6px) + opacity", "purpose": "Cambio de sección" }
+    ],
+    "breakpoints": [
+      { "name": "small-phone", "value": "380px" },
+      { "name": "tablet", "value": "640px" },
+      { "name": "rail", "value": "900px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Awning",
+      "kind": "custom",
+      "refersTo": "awning",
+      "description": "Una estadía sobre sus noches, en el color de su canal.",
+      "html": "<a class=\"ds-awning\"><span>Familia Márquez</span></a>",
+      "css": ".ds-awning{display:flex;flex-direction:column;width:220px;height:34px;border-radius:7px 7px 3px 3px;overflow:hidden;box-shadow:0 2px 5px rgba(15,31,41,.14);color:#fff;font:700 12px system-ui;text-decoration:none}.ds-awning::before{content:'';height:9px;background:repeating-linear-gradient(90deg,#c63b2f 0 10px,#fff 10px 20px)}.ds-awning span{flex:1;display:flex;align-items:center;padding:0 8px;background:#c63b2f}"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Acción principal de cada pantalla.",
+      "html": "<button class=\"ds-btn\">Nueva autorización</button>",
+      "css": ".ds-btn{min-height:48px;padding:0 18px;border:0;border-radius:12px;background:#1b3fb5;color:#fff;font:650 16px system-ui;box-shadow:0 1px 2px rgba(17,41,122,.3),0 6px 18px rgba(27,63,181,.28)}.ds-btn:active{transform:scale(.97)}"
+    },
+    {
+      "name": "Chip",
+      "kind": "chip",
+      "refersTo": "chip-selected",
+      "description": "Selector de canal, estado o filtro.",
+      "html": "<span class=\"ds-chip\">Airbnb</span>",
+      "css": ".ds-chip{display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border-radius:999px;background:#1b3fb5;color:#fff;font:600 15px system-ui}"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Campo de texto de 48px, 16px para evitar zoom en iOS.",
+      "html": "<input class=\"ds-input\" placeholder=\"Cédula\">",
+      "css": ".ds-input{min-height:48px;padding:11px 13px;border:1px solid #b9c8cc;border-radius:10px;font:16px system-ui}.ds-input:focus{outline:none;border-color:#1b3fb5;box-shadow:0 0 0 3px rgba(27,63,181,.22)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Toldos de los cayos",
+    "overview": "Cada estadía es un toldo rayado tendido sobre sus noches, con el color del canal por donde llegó. La pantalla de trabajo es estándar y clara; el mundo aporta solo la lona azul, los toldos, la arena de las noches libres y los números esténcil.",
+    "keyCharacteristics": ["Fondo blanco frío para leer al sol", "Lona azul como único campo de color", "Toldos con color por canal", "Números esténcil solo para fechas"],
+    "rules": [
+      { "name": "Arena significa libre", "body": "El color arena solo marca noches libres.", "section": "colors" },
+      { "name": "Esténcil solo para números", "body": "La fuente esténcil nunca se usa en palabras.", "section": "typography" }
+    ],
+    "dos": ["Mostrar todo lo leído por máquina como editable y marcado para revisar"],
+    "donts": ["No usar sombras desplazadas sin desenfoque", "No poner etiquetas sobre los títulos"]
+  }
+}

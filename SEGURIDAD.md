@@ -1,0 +1,32 @@
+# Seguridad: los 20 puntos
+
+Cómo cubre la app cada punto de la lista "20 cosas para pedirle a Claude antes de lanzar tu app", y dónde está el código.
+
+| # | Punto | Cómo se cumple | Dónde |
+|---|---|---|---|
+| 1 | Ocultar API keys | La API key de Claude vive solo en Netlify (variable de entorno del servidor) y la usa la función `leer-cedula`. El navegador nunca la ve. Solo las variables con prefijo `VITE_` llegan al navegador, y esas son públicas por diseño. | `netlify/functions/leer-cedula.mts`, `.env.example` |
+| 2 | Eliminar secretos de Git | `.env*` está en `.gitignore`. El build falla si detecta claves (Anthropic, JWT de service_role, llaves privadas, tokens de GitHub o AWS) en archivos del repositorio. | `scripts/check-secrets.mjs`, `.gitignore` |
+| 3 | Key pública para DB | El navegador usa solo la llave `anon` de Supabase. La `service_role` no se usa en ningún lado. | `src/lib/store/supabase.ts` |
+| 4 | Row-Level Security | RLS activada y forzada en todas las tablas; cada política filtra por `auth.uid()`. | `supabase/migrations/…_esquema_inicial.sql` |
+| 5 | Encriptar datos sensibles | HTTPS en tránsito (con HSTS); Supabase cifra el disco en reposo. Las fotos de cédulas no se guardan nunca: se leen en el teléfono y se descartan, y al re-codificarlas se borran sus metadatos (incluida la ubicación GPS). `purge_old_guest_data` borra cédulas y placas 60 días después de la salida. | `src/lib/image.ts`, SQL |
+| 6 | Forzar la autenticación | Con Supabase configurado, la app no muestra nada sin sesión. El rol `anon` no tiene ningún permiso en la base. La función de IA rechaza peticiones sin un token válido. | `src/App.tsx`, SQL, función |
+| 7 | Restringir el acceso a registros | Cada dueño ve y modifica solo lo suyo. Las llaves foráneas compuestas `(owner_id, id)` impiden colgar huéspedes en reservas ajenas. Probado con dos usuarios en `tests/db`. | SQL, `tests/db/rls-test.sql` |
+| 8 | Bloquear manipulación de campos | Triggers que fijan `owner_id`, `id`, `created_at` y `updated_at`, sin importar lo que mande el navegador. En el perfil solo se pueden actualizar 3 columnas. | SQL (`tg_protect_owner`) |
+| 9 | Proteger session cookies | Supabase guarda la sesión del lado del navegador (no son cookies). La protección es una CSP estricta, sin scripts de terceros ni `eval`, para que un XSS no pueda leerla; además, tokens de vida corta con renovación automática y flujo PKCE. | `netlify.toml`, `supabase.ts` |
+| 10 | Hashear contraseñas | Las maneja Supabase Auth (bcrypt). La app nunca guarda ni ve contraseñas. | Supabase |
+| 11 | Rate limiting | La función de IA tiene límite por IP en Netlify (30/min) y por usuario en la base (40/hora, configurable). Supabase Auth limita los intentos de login. | función, `consume_ai_quota` |
+| 12 | Protección contra bots | Registro público desactivado (solo cuentas invitadas), login con límite de intentos y `noindex` en todo el sitio. Opcional: activar CAPTCHA (Turnstile) en Supabase → Authentication → Bot protection. | README |
+| 13 | Parametrizar queries | Todo pasa por PostgREST/RPC con parámetros. No hay SQL armado con texto. | `supabase.ts`, SQL |
+| 14 | Validar inputs | Validación en el navegador (cédulas, placas, fechas, montos) y de nuevo en la base con `CHECK` (formatos, rangos, máximo 7 personas y 2 vehículos, salida después de la entrada, sin choques de reservas confirmadas). | `src/lib/store/validate.ts`, SQL |
+| 15 | Sanitizar contenido | React escapa todo el HTML (no se usa `dangerouslySetInnerHTML`). Se limpian caracteres de control y se neutraliza la inyección de fórmulas en el Excel (`=`, `+`, `-`, `@`). | `src/lib/sanitize.ts`, `excel.ts` |
+| 16 | Restringir archivos | Solo JPG, PNG, WEBP y HEIC de hasta 15 MB. El servidor verifica tipo, tamaño y la firma real del archivo (sus primeros bytes). | `src/lib/image.ts`, `netlify/lib/imagen.ts` |
+| 17 | Devolver datos necesarios | Consultas con columnas explícitas, nunca `select *`. La función de IA devuelve solo nombre y cédula, ya limpios. | `supabase.ts`, función |
+| 18 | Security headers | CSP, HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, COOP/CORP. | `netlify.toml` |
+| 19 | Forzar HTTPS | Netlify redirige a HTTPS; además HSTS con preload y `upgrade-insecure-requests`. | `netlify.toml` |
+| 20 | Escanear dependencias | `npm audit` en cada push (GitHub Actions) y Dependabot semanal. El aviso de `uuid` dentro de exceljs se resolvió forzando una versión corregida. | `.github/` |
+
+## Pruebas que lo respaldan
+
+- `npm run test:db`: levanta un Postgres desechable y prueba RLS, la protección de campos, los choques de fechas, la cuota de IA y el acceso anónimo (26 comprobaciones).
+- `npm test`: parsers, Excel (incluida la inyección de fórmulas), validación de imágenes de la función.
+- `npm run test:e2e`: la app compilada, servida con la CSP real, en teléfono y escritorio. Falla ante cualquier violación de la CSP.
