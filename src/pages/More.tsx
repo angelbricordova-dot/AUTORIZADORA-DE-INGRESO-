@@ -1,4 +1,5 @@
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties, type FormEvent } from 'react';
+import { useToast } from '../components/Toast';
 import { useApp } from '../context';
 import { resetDemo } from '../lib/store/demo';
 import { href } from '../router';
@@ -19,6 +20,7 @@ export function MorePage() {
       <div className="page-head">
         <h1 className="grow">Más</h1>
       </div>
+      <MyName />
       <div className="panel list stagger">
         {items.map((it, i) => (
           <a key={it.title} className="list-item" href={it.to} style={{ '--i': i } as CSSProperties}>
@@ -61,5 +63,45 @@ export function MorePage() {
         </button>
       ) : null}
     </div>
+  );
+}
+
+/** El nombre con el que el panel saluda a quien entró (cada persona tiene el suyo). */
+function MyName() {
+  const { data, store, reload } = useApp();
+  const toast = useToast();
+  const [name, setName] = useState(data.me?.name ?? '');
+  const [saving, setSaving] = useState(false);
+  const roleLabel = data.me?.role === 'admin' ? 'Administradora' : data.me?.role === 'staff' ? 'Trabajo' : 'Cuenta principal';
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setSaving(true);
+    try {
+      await store.saveMyName(name);
+      await reload();
+      toast('Listo, ahora te saludo así');
+    } catch (err) {
+      toast((err as Error).message, 'bad');
+    } finally {
+      setSaving(false);
+    }
+  }
+  return (
+    <form className="panel panel-pad stack" onSubmit={onSubmit} aria-label="Tu nombre">
+      <div className="field">
+        <label htmlFor="mi-nombre">Tu nombre (para el saludo)</label>
+        <div className="row">
+          <input id="mi-nombre" className="input grow" maxLength={40} autoComplete="given-name" value={name} onChange={(e) => setName(e.target.value)} />
+          <button className="btn btn-primary" type="submit" disabled={saving || !name.trim() || name.trim() === data.me?.name}>
+            {saving ? <span className="spinner" /> : null} Guardar
+          </button>
+        </div>
+        <span className="hint">
+          {data.me?.email ? `${data.me.email} · ` : ''}
+          {roleLabel}
+        </span>
+      </div>
+    </form>
   );
 }

@@ -18,7 +18,22 @@ import type {
   Vehicle,
 } from '../types';
 
+/** Quién entró al panel (para el saludo). Solo informativo: nunca decide permisos. */
+export interface Me {
+  name: string;
+  email: string;
+  role: 'owner' | 'admin' | 'staff';
+}
+
+/** "alejandro.rojas93@gmail.com" → "Alejandro" */
+export function nameFromEmail(email: string): string {
+  const first = (email.split('@')[0] || '').split(/[._\-+\d]+/).find((w) => /^[a-záéíóúñ]{2,}$/i.test(w)) ?? '';
+  return first ? first.charAt(0).toUpperCase() + first.slice(1).toLowerCase() : '';
+}
+
 export interface AppData {
+  /** Quien entró (en modo demo, la dueña de ejemplo) */
+  me?: Me;
   settings: Settings;
   properties: Property[];
   reservations: Reservation[];
@@ -58,6 +73,8 @@ export interface DataStore {
   removeTeamMember(memberId: string): Promise<void>;
   /** Si quien entró es del equipo (Zuleika) devuelve su nombre; si es la dueña, null. */
   staffRole(): Promise<{ name: string } | null>;
+  /** Guarda el nombre con el que la app saluda a quien entró. */
+  saveMyName(name: string): Promise<void>;
   /** Lo que ve el equipo: agenda sin datos personales, sus cobros, tareas y caja. */
   loadStaff(today: string): Promise<StaffData>;
 }

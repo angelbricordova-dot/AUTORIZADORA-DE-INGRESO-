@@ -5,7 +5,7 @@ import { cleanText } from '../sanitize';
 import { formatCedula } from '../cedula';
 import { cleanSupabaseKey, cleanSupabaseUrl } from '../supabaseConfig';
 import type { AppData, DataStore } from './types';
-import { DEFAULT_SETTINGS, OWN_DEFAULTS, friendlyError } from './types';
+import { DEFAULT_SETTINGS, OWN_DEFAULTS, friendlyError, nameFromEmail, type Me } from './types';
 import { sanitizeCash, sanitizeGuests, sanitizeOpsPatch, sanitizePayment, sanitizeProperty, sanitizeReservation, sanitizeVehicles } from './validate';
 import { addDays } from '../dates';
 
@@ -133,6 +133,18 @@ const mapOps = (o: StayOps): StayOps => ({
 });
 const mapCash = (m: CashMovement): CashMovement => ({ ...m, amount_usd: num(m.amount_usd), note: m.note ?? '' });
 
+/** Quién entró: su nombre guardado, el que le dieron en Accesos o el de su correo. */
+async function loadMe(sb: SupabaseClient): Promise<Me | undefined> {
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) return undefined;
+  const email = auth.user.email ?? '';
+  const meta = cleanText((auth.user.user_metadata as { display_name?: unknown } | null)?.display_name, 40);
+  const ws = await sb.rpc('my_workspace').maybeSingle();
+  const w = (ws.error ? null : ws.data) as { role?: string; name?: string } | null;
+  const role = w?.role === 'admin' || w?.role === 'staff' ? w.role : 'owner';
+  return { email, role, name: meta || cleanText(w?.name, 40) || nameFromEmail(email) };
+}
+
 /** Pagos, tareas y caja. Si la migración de equipo no se ejecutó, devuelve listas vacías. */
 async function loadOps(sb: SupabaseClient) {
   const [p, o, c] = await Promise.all([
@@ -162,11 +174,12 @@ export const supabaseStore: DataStore = {
     const owner = await ownerId(sb);
     const properties = await loadProperties(sb);
     const own = properties.find((p) => p.kind === 'propio') ?? properties[0];
-    const [profileRes, { data: rows, error: re }, ops, team] = await Promise.all([
+    const [profileRes, { data: rows, error: re }, ops, team, me] = await Promise.all([
       sb.from('profiles').select('full_name, cedula, admin_whatsapp, staff_name, cash_alert_usd, deposit_usd').eq('id', owner).maybeSingle(),
       sb.from('reservations').select(RES_COLUMNS).order('check_in'),
       loadOps(sb),
       sb.rpc('my_team'),
+      loadMe(sb),
     ]);
     let profile = profileRes.data as Record<string, unknown> | null;
     if (missingSchema(profileRes.error)) {
@@ -176,6 +189,7 @@ export const supabaseStore: DataStore = {
     } else if (profileRes.error) throw friendlyError(profileRes.error);
     if (re) throw friendlyError(re);
     return {
+      me,
       properties,
       settings: {
         owner_name: (profile?.full_name as string) || DEFAULT_SETTINGS.owner_name,
@@ -360,6 +374,11 @@ export const supabaseStore: DataStore = {
   async removeTeamMember(memberId) {
     const { error } = await getSupabase().from('team_members').delete().eq('member_id', memberId);
     if (error) throw friendlyError(error);
+  },
+
+  async saveMyName(name) {
+    const { error } = await getSupabase().auth.updateUser({ data: { display_name: cleanText(name, 40) } });
+    if (error) throw new Error('No se pudo guardar tu nombre. Inténtalo de nuevo.');
   },
 
   async staffRole() {

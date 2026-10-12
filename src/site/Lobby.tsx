@@ -47,7 +47,13 @@ export function Lobby({ data, own, phone }: { data: PublicData | null; own?: Pub
   return (
     <>
       <section className="lobby-hero" aria-labelledby="h-lobby">
-        <span className="lobby-sun" aria-hidden="true" />
+        <span className="lobby-sun" aria-hidden="true">
+          <span className="sunlight" />
+          <span className="sun-halo" />
+          <span className="sun-disc" />
+        </span>
+        <Palm className="lobby-palm" />
+        <Palm className="lobby-palm small" />
         <LogoMark className="lobby-logo" draw />
         <div className="lobby-copy">
           <h1 id="h-lobby">
@@ -65,9 +71,10 @@ export function Lobby({ data, own, phone }: { data: PublicData | null; own?: Pub
             ) : null}
           </div>
         </div>
-        <svg className="lobby-waves" viewBox="0 0 1440 120" preserveAspectRatio="none" aria-hidden="true">
-          <path className="w1" d="M0 64c120 22 240 22 360 0s240-22 360 0 240 22 360 0 240-22 360 0v56H0z" />
-          <path className="w2" d="M0 80c120-18 240-18 360 0s240 18 360 0 240-18 360 0 240 18 360 0v40H0z" />
+        <svg className="lobby-waves" viewBox="0 0 1440 160" preserveAspectRatio="none" aria-hidden="true">
+          <path className="w1" d="M0 58c120 34 240 34 360 0s240-34 360 0 240 34 360 0 240-34 360 0v102H0z" />
+          <path className="w2" d="M0 86c120-30 240-30 360 0s240 30 360 0 240-30 360 0 240 30 360 0v74H0z" />
+          <path className="w3" d="M0 112c120 24 240 24 360 0s240-24 360 0 240 24 360 0 240-24 360 0v48H0z" />
         </svg>
       </section>
 
@@ -226,5 +233,28 @@ function Featured({ l }: { l: PublicListing }) {
         </div>
       </div>
     </article>
+  );
+}
+
+/** Palmera que se mece con la brisa: el tronco se inclina y las hojas se mueven cada una a su ritmo. */
+function Palm({ className }: { className: string }) {
+  const fronds = [
+    'M100 92C70 70 34 72 4 102C36 84 68 84 100 98Z',
+    'M100 92C78 56 46 42 16 50C48 56 74 70 98 98Z',
+    'M100 92C102 54 120 26 146 12C130 40 118 66 104 98Z',
+    'M100 92C132 66 168 66 196 90C166 80 134 84 104 100Z',
+    'M100 92C134 92 162 110 176 142C152 118 126 106 102 100Z',
+    'M100 92C72 98 48 118 40 150C58 124 78 110 98 100Z',
+  ];
+  return (
+    <svg className={className} viewBox="0 0 200 420" aria-hidden="true">
+      <g className="palm-tree">
+        <path className="palm-trunk" d="M100 96C104 170 116 260 112 420" />
+        {fronds.map((d, i) => (
+          <path key={i} className="palm-frond" d={d} style={{ '--i': i } as CSSProperties} />
+        ))}
+        <circle cx="100" cy="98" r="7" className="palm-coco" />
+      </g>
+    </svg>
   );
 }

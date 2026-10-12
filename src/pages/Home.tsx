@@ -81,7 +81,8 @@ export function HomePage() {
   const monthEnd = addDays(monthStart, 40).slice(0, 8) + '01';
   const stats = monthStats(own, monthStart);
   const m = Number(today.slice(5, 7)) - 1;
-  const firstName = data.settings.owner_name.split(' ')[0] || 'Hola';
+  // saluda a quien entró (Alejandro, Oniris, Angélica…), no a la dueña de la planilla
+  const firstName = (data.me?.name ?? '').split(' ')[0];
 
   // Comisión del mes: noches vendidas en apartamentos aliados × (precio público − costo del dueño)
   const commissionMonth = data.reservations
@@ -124,7 +125,7 @@ export function HomePage() {
   return (
     <div className="page">
       <div className="hello">
-        <h1>Hola, {firstName}</h1>
+        <h1>{firstName ? `Hola, ${firstName}` : 'Hola'}</h1>
         <p>{formatLong(today).replace(/^./, (c) => c.toUpperCase())}</p>
       </div>
 

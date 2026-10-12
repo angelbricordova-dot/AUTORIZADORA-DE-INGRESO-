@@ -92,7 +92,7 @@ Cada usuario de Supabase, por sí solo, tiene su **propio** panel vacío. Para q
 2. Entra al panel con la cuenta que **tiene los datos** y ve a **Más → Accesos al panel**. Escribe el nombre y el correo y elige:
    - **Administradora** (Oniris, Angélica): ve y maneja todo, igual que tú.
    - **Trabajo** (Zuleika): solo su panel de tareas, garantías y caja.
-3. Esa persona entra en `/admin` con su correo. Si ya había entrado antes y vio un panel vacío, ese panel vacío se borra al darle acceso.
+3. Esa persona entra en `/admin` con su correo. El panel saluda a cada quien por su nombre; cada persona lo puede cambiar en **Más → Tu nombre** (no cambia el nombre de la planilla, que sigue en **Datos de la planilla**). Si ya había entrado antes y vio un panel vacío, ese panel vacío se borra al darle acceso.
 
 Para quitar un acceso, toca la papelera junto a su nombre.
 

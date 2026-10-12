@@ -125,3 +125,15 @@ test.describe('lector de cédulas en el teléfono (bajo la CSP real)', () => {
     });
   }
 });
+
+test('el saludo usa el nombre de quien entró, no el de la planilla', async ({ page }) => {
+  await page.goto('/admin/mas');
+  await page.getByLabel('Tu nombre (para el saludo)').fill('Alejandro');
+  await page.getByRole('button', { name: 'Guardar' }).click();
+  await expect(page.getByText('Listo, ahora te saludo así')).toBeVisible();
+  await page.goto('/admin');
+  await expect(page.getByRole('heading', { name: 'Hola, Alejandro' })).toBeVisible();
+  // la planilla sigue a nombre de Oniris
+  await page.goto('/admin/ajustes');
+  await expect(page.getByLabel('Propietaria')).toHaveValue('Oniris Rojas');
+});

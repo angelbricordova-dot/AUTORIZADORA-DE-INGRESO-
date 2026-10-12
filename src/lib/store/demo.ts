@@ -170,7 +170,21 @@ function withPaid(d: AppData): AppData {
 export const demoStore: DataStore = {
   mode: 'demo',
   async load() {
-    return structuredClone(get());
+    const d = structuredClone(get());
+    let name = '';
+    try {
+      name = localStorage.getItem('tudia-demo-nombre') ?? '';
+    } catch {
+      /* sin almacenamiento */
+    }
+    return { ...d, me: { name: name || d.settings.owner_name.split(' ')[0], email: '', role: 'owner' as const } };
+  },
+  async saveMyName(name) {
+    try {
+      localStorage.setItem('tudia-demo-nombre', name.trim().slice(0, 40));
+    } catch {
+      /* sin almacenamiento */
+    }
   },
   async saveSettings(s) {
     const d = get();
