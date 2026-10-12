@@ -55,7 +55,7 @@ export function ReviewsSection({ reviews, title = 'Lo que dicen nuestros huéspe
         {reviews.map((r, i) => (
           <article key={r.id} className="review-card" style={{ '--i': i } as CSSProperties}>
             {r.rating != null ? <Stars value={r.rating} /> : null}
-            <blockquote>{r.liked}</blockquote>
+            <blockquote>{r.comment}</blockquote>
             <footer className="small muted">
               <strong>{r.author}</strong>
               {r.nights ? ` · ${r.nights} ${r.nights === 1 ? 'noche' : 'noches'}` : ''} · {monthName(Number(r.created_at.slice(5, 7)) - 1)} {r.created_at.slice(0, 4)}

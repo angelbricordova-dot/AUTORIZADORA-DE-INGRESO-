@@ -21,6 +21,7 @@ const EMPTY: ReviewInput = {
   recommend: null,
   liked: '',
   improve: '',
+  comment: '',
   permission: 'si',
 };
 
@@ -225,8 +226,24 @@ export function SurveyPage({ data, own, phone, query }: { data: PublicData | nul
           <span className="hint">Esto solo lo vemos nosotros.</span>
         </fieldset>
 
+        <fieldset className="q q-public">
+          <legend>
+            <label htmlFor="comentario">Deja un comentario sobre tu estadía</label>
+          </legend>
+          <span className="hint">Es lo que verán otros huéspedes en nuestra página.</span>
+          <textarea
+            id="comentario"
+            className="textarea"
+            maxLength={1000}
+            rows={4}
+            placeholder="Ej.: Pasamos un fin de semana increíble en familia. El apartamento estaba impecable, la piscina es genial y quedamos a pocos minutos de los muelles para ir a los cayos. ¡Volveremos!"
+            value={f.comment}
+            onChange={(e) => set('comment', e.target.value)}
+          />
+        </fieldset>
+
         <fieldset className="q">
-          <legend>¿Nos das permiso de usar lo que más te gustó como testimonio en nuestra página y redes?</legend>
+          <legend>¿Nos das permiso de publicar tu comentario en nuestra página y redes?</legend>
           <div className="segmented wrap">
             {PERMISSIONS.map((p) => (
               <label key={p.id} className="chip">
@@ -235,7 +252,7 @@ export function SurveyPage({ data, own, phone, query }: { data: PublicData | nul
               </label>
             ))}
           </div>
-          {f.permission !== 'no' ? (
+          {f.permission !== 'no' && f.comment.trim() ? (
             <div className="field">
               <label htmlFor="nombre">Tu nombre (se muestra como “María G.”)</label>
               <input id="nombre" className="input" maxLength={60} autoComplete="name" value={f.author_name} onChange={(e) => set('author_name', e.target.value)} />

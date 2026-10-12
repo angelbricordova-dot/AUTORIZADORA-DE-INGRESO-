@@ -127,6 +127,8 @@ export function importFormsCsv(text: string): ImportedReview[] {
         recommend: score(get(r, 'recommend'), 10),
         liked: get(r, 'liked').slice(0, 1000),
         improve: get(r, 'improve').slice(0, 1000) || 'Sin comentarios',
+        // en el formulario anterior, el permiso de publicar era sobre "lo que más te gustó"
+        comment: get(r, 'liked').slice(0, 1000),
         permission: permission(get(r, 'permission')),
       },
     };

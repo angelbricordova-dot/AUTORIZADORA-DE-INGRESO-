@@ -166,10 +166,11 @@ export function sanitizeReview(r: ReviewInput): ReviewInput {
     recommend: score(r.recommend, 10),
     liked: text(r.liked, 1000),
     improve: text(r.improve, 1000),
+    comment: text(r.comment ?? '', 1000),
     permission: r.permission === 'si' || r.permission === 'consultar' ? r.permission : 'no',
   };
   if (out.improve.length < 2) throw new Error('Cuéntanos qué mejorarías: es la única pregunta obligatoria.');
-  if (out.permission !== 'no' && out.author_name.length < 2) throw new Error('Escribe tu nombre para poder mostrar tu opinión.');
-  if (/(https?:\/\/|www\.)/i.test(`${out.liked} ${out.improve} ${out.kitchen_missing}`)) throw new Error('La encuesta no puede llevar enlaces.');
+  if (out.permission !== 'no' && out.comment && out.author_name.length < 2) throw new Error('Escribe tu nombre para poder mostrar tu comentario.');
+  if (/(https?:\/\/|www\.)/i.test(`${out.liked} ${out.improve} ${out.comment} ${out.kitchen_missing}`)) throw new Error('La encuesta no puede llevar enlaces.');
   return out;
 }

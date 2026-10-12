@@ -126,7 +126,7 @@ function read(): AppData {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as AppData;
-      if (parsed && Array.isArray(parsed.reservations) && Array.isArray(parsed.properties) && Array.isArray(parsed.payments) && parsed.settings) return { ...parsed, reviews: parsed.reviews ?? [] };
+      if (parsed && Array.isArray(parsed.reservations) && Array.isArray(parsed.properties) && Array.isArray(parsed.payments) && parsed.settings) return { ...parsed, reviews: (parsed.reviews ?? []).map((r) => ({ ...r, comment: r.comment ?? r.liked ?? '' })) };
     }
   } catch {
     /* almacenamiento bloqueado o dañado: se usan los datos de ejemplo */
@@ -284,14 +284,14 @@ export const demoStore: DataStore = {
         .filter((r) => ids.has(r.property_id) && r.status === 'confirmada' && r.check_out > from && r.check_in < to)
         .map((r) => ({ property_id: r.property_id, check_in: r.check_in, check_out: r.check_out })),
       reviews: (d.reviews ?? [])
-        .filter((r) => ids.has(r.property_id) && r.status === 'publicada' && r.permission !== 'no' && r.liked)
+        .filter((r) => ids.has(r.property_id) && r.status === 'publicada' && r.permission !== 'no' && r.comment)
         .sort((a, b) => b.created_at.localeCompare(a.created_at))
         .map((r): PublicReview => {
           const [first = '', second = ''] = r.author_name.split(' ');
           return {
             id: r.id, property_id: r.property_id, author: !first ? 'Huésped' : second ? `${first} ${second[0]}.` : first, nights: r.nights, rating: reviewScore(r),
             cleanliness: r.cleanliness, beds: r.beds, ac: r.ac, wifi: r.wifi, communication: r.communication, recommend: r.recommend,
-            liked: r.liked, reply: r.reply, created_at: r.created_at,
+            comment: r.comment, reply: r.reply, created_at: r.created_at,
           };
         }),
     };
@@ -307,7 +307,7 @@ export const demoStore: DataStore = {
     const d = get();
     const r = (d.reviews ?? []).find((x) => x.id === id);
     if (!r) throw new Error('No encontré esa respuesta.');
-    if (patch.status === 'publicada' && (r.permission === 'no' || !r.liked)) throw new Error('El huésped no dio permiso para publicarla.');
+    if (patch.status === 'publicada' && (r.permission === 'no' || !r.comment)) throw new Error('El huésped no dio permiso o no dejó un comentario para publicar.');
     const next = { ...r, ...(patch.status ? { status: patch.status } : {}), ...(patch.reply != null ? { reply: patch.reply.trim().slice(0, 500) } : {}) };
     commit({ ...d, reviews: d.reviews.map((x) => (x.id === id ? next : x)) });
   },

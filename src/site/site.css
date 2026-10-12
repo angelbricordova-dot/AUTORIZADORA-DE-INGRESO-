@@ -1728,3 +1728,14 @@
     animation: none;
   }
 }
+/* El ejemplo del comentario se ve tenue: es solo una idea, no un texto escrito */
+.q-public .textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.6;
+  font-style: italic;
+}
+.review-public {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--brand-softer);
+}

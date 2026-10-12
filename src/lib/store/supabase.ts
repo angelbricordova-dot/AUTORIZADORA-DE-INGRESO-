@@ -167,6 +167,7 @@ const mapCash = (m: CashMovement): CashMovement => ({ ...m, amount_usd: num(m.am
 
 const REVIEW_COLUMNS =
   'id, property_id, author_name, nights, cleanliness, beds, ac, wifi, communication, kitchen_ok, kitchen_missing, recommend, liked, improve, permission, status, reply, created_at';
+const REVIEW_COLUMNS_V8 = `${REVIEW_COLUMNS}, comment`;
 const nOrNull = (v: unknown) => (v == null ? null : Number(v));
 const mapReview = (r: Record<string, unknown>): Review =>
   ({
@@ -178,6 +179,8 @@ const mapReview = (r: Record<string, unknown>): Review =>
     wifi: nOrNull(r.wifi),
     communication: nOrNull(r.communication),
     recommend: nOrNull(r.recommend),
+    // sin la migración del comentario, lo publicado era "lo que más le gustó"
+    comment: typeof r.comment === 'string' ? r.comment : typeof r.liked === 'string' ? r.liked : '',
   }) as Review;
 
 /** Quién entró: su nombre guardado, el que le dieron en Accesos o el de su correo. */
@@ -227,7 +230,11 @@ export const supabaseStore: DataStore = {
       loadOps(sb),
       sb.rpc('my_team'),
       loadMe(sb),
-      sb.from('reviews').select(REVIEW_COLUMNS).order('created_at', { ascending: false }),
+      sb
+        .from('reviews')
+        .select(REVIEW_COLUMNS_V8)
+        .order('created_at', { ascending: false })
+        .then((r) => (missingSchema(r.error) ? sb.from('reviews').select(REVIEW_COLUMNS).order('created_at', { ascending: false }) : r)),
     ]);
     let profile = profileRes.data as Record<string, unknown> | null;
     if (missingSchema(profileRes.error)) {

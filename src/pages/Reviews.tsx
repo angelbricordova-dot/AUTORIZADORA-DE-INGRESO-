@@ -50,7 +50,7 @@ export function ReviewsPage() {
         <h2 id="h-pedir" className="install-title">
           Pedir una opinión
         </h2>
-        <p className="small muted">Mándale este enlace al huésped cuando se vaya. Lo que mejoraría solo lo ven ustedes; lo que más le gustó se publica si da permiso y tú lo apruebas.</p>
+        <p className="small muted">Mándale este enlace al huésped cuando se vaya. Lo que mejoraría y lo que más le gustó solo lo ven ustedes; su comentario se publica si da permiso y tú lo apruebas.</p>
         <div className="row-wrap">
           <a
             className="btn btn-whatsapp btn-small"
@@ -131,7 +131,7 @@ function Summary({ reviews }: { reviews: Review[] }) {
 }
 
 const STATUS_LABEL: Record<ReviewStatus, string> = { pendiente: 'Por revisar', publicada: 'Publicada', oculta: 'Oculta' };
-const PERMISSION_LABEL = { si: 'Dio permiso para publicarla', no: 'No quiere que se publique', consultar: 'Publicar solo si le consultan antes' };
+const PERMISSION_LABEL = { si: 'Dio permiso para publicar su comentario', no: 'No quiere que se publique', consultar: 'Publicar solo si le consultan antes' };
 
 function ReviewCard({ r }: { r: Review }) {
   const { data, store, reload } = useApp();
@@ -139,7 +139,7 @@ function ReviewCard({ r }: { r: Review }) {
   const [reply, setReply] = useState(r.reply);
   const [busy, setBusy] = useState(false);
   const score = reviewScore(r);
-  const canPublish = r.permission !== 'no' && !!r.liked;
+  const canPublish = r.permission !== 'no' && !!r.comment;
   const prop = data.properties.find((p) => p.id === r.property_id);
 
   async function run(fn: () => Promise<void>, ok: string) {
@@ -188,6 +188,12 @@ function ReviewCard({ r }: { r: Review }) {
         {r.kitchen_ok != null ? <span>Cocina: {r.kitchen_ok ? 'tenía todo' : `faltó ${r.kitchen_missing || 'algo'}`}</span> : null}
       </div>
 
+      {r.comment ? (
+        <div>
+          <span className="tiny muted">Comentario para la página</span>
+          <p className="review-text review-public">{r.comment}</p>
+        </div>
+      ) : null}
       {r.liked ? (
         <div>
           <span className="tiny muted">Lo que más le gustó</span>
@@ -213,7 +219,7 @@ function ReviewCard({ r }: { r: Review }) {
             className="btn btn-primary btn-small"
             type="button"
             disabled={busy || !canPublish}
-            title={canPublish ? undefined : 'El huésped no dio permiso o no escribió qué le gustó'}
+            title={canPublish ? undefined : 'El huésped no dio permiso o no dejó un comentario'}
             onClick={() => run(() => store.moderateReview(r.id, { status: 'publicada', reply }), 'Publicada en la página')}
           >
             <Icon name="check" /> Publicar
@@ -238,7 +244,7 @@ function ReviewCard({ r }: { r: Review }) {
           <Icon name="trash" /> Borrar
         </button>
       </div>
-      {!canPublish ? <p className="hint">No se puede publicar: {r.permission === 'no' ? 'el huésped no dio permiso.' : 'no escribió qué le gustó.'}</p> : null}
+      {!canPublish ? <p className="hint">No se puede publicar: {r.permission === 'no' ? 'el huésped no dio permiso.' : 'no dejó un comentario para la página.'}</p> : null}
     </article>
   );
 }

@@ -161,10 +161,12 @@ export interface ReviewInput {
   kitchen_missing: string;
   /** 1 a 10 */
   recommend: number | null;
-  /** Lo que más le gustó: es lo único que puede publicarse */
+  /** Lo que más le gustó: solo para el panel */
   liked: string;
   /** Lo que mejoraría: privado */
   improve: string;
+  /** Comentario general sobre la estadía: es lo que se publica (con permiso) */
+  comment: string;
   permission: ReviewPermission;
 }
 
@@ -189,7 +191,8 @@ export interface PublicReview {
   wifi: number | null;
   communication: number | null;
   recommend: number | null;
-  liked: string;
+  /** Comentario publicado */
+  comment: string;
   reply: string;
   created_at: string;
 }

@@ -39,3 +39,7 @@ T=$($PSQL -At -c "set role anon; select count(*) || '/' || coalesce(max(tiktok_u
 $PSQL -f "$ROOT/supabase/migrations/20261016000000_resenas.sql"
 R=$($PSQL -At -c "set role anon; select count(*) from public.public_reviews();")
 [ "$R" = "0" ] && echo "RESEÑAS SIN ROMPER LA PÁGINA: OK" || { echo "FALLA reseñas: $R"; exit 1; }
+# v7: comentario público
+$PSQL -f "$ROOT/supabase/migrations/20261017000000_resenas_comentario.sql"
+C=$($PSQL -At -c "set role anon; select count(*) from public.public_reviews();")
+[ "$C" = "0" ] && echo "COMENTARIO PÚBLICO SIN ROMPER LA PÁGINA: OK" || { echo "FALLA comentario: $C"; exit 1; }

@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
 });
 test.afterEach(() => noErrors(errors));
 
-async function answer(page: Page, o: { liked: string; improve: string; name?: string; permiso?: 'Sí' | 'No' | 'Solo si me consultan antes' }) {
+async function answer(page: Page, o: { liked: string; improve: string; comment?: string; name?: string; permiso?: 'Sí' | 'No' | 'Solo si me consultan antes' }) {
   await page.goto('/opinion?apto=30');
   await expect(page.getByRole('heading', { name: 'Ayúdanos a mejorar tu próxima estadía' })).toBeVisible();
   await page.getByRole('button', { name: 'Una noche más' }).click();
@@ -20,6 +20,9 @@ async function answer(page: Page, o: { liked: string; improve: string; name?: st
   await page.getByRole('radiogroup', { name: 'Del 1 al 10' }).getByRole('radio', { name: '10' }).click();
   await page.getByLabel('¿Qué fue lo que MÁS te gustó?').fill(o.liked);
   await page.getByLabel(/¿Qué mejorarías\?/).fill(o.improve);
+  const comentario = page.getByLabel('Deja un comentario sobre tu estadía');
+  await expect(comentario).toHaveAttribute('placeholder', /Ej\.: Pasamos un fin de semana increíble/);
+  if (o.comment) await comentario.fill(o.comment);
   await page.getByRole('radio', { name: o.permiso ?? 'Sí', exact: true }).check();
   if (o.name) await page.getByLabel(/Tu nombre/).fill(o.name);
   await page.waitForTimeout(3100); // la encuesta ignora envíos de robots hechos en menos de 3 s
@@ -33,20 +36,22 @@ test('encuesta: el huésped opina, el panel la publica y aparece en la página s
   await expect(page.getByRole('link', { name: 'Dejar mi opinión' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Lo que dicen nuestros huéspedes' })).toHaveCount(0);
 
-  await answer(page, { liked: 'La decoración y la piscina', improve: 'Más toallas de playa', name: 'María Gómez' });
+  await answer(page, { liked: 'La piscina', improve: 'Más toallas de playa', comment: 'Un fin de semana perfecto en familia, todo impecable.', name: 'María Gómez' });
 
   await page.goto('/admin/mas');
   await page.getByRole('link', { name: /Opiniones de huéspedes/ }).click();
   const card = page.getByRole('article', { name: 'Opinión de María Gómez' });
   await expect(card.getByText('Más toallas de playa')).toBeVisible();
-  await expect(card.getByText('Dio permiso para publicarla')).toBeVisible();
+  await expect(card.getByText('Dio permiso para publicar su comentario')).toBeVisible();
   await card.getByLabel('Respuesta pública (opcional)').fill('¡Gracias María! Te esperamos.');
   await card.getByRole('button', { name: 'Publicar' }).click();
   await expect(page.getByText('Publicada en la página')).toBeVisible();
 
   await page.goto('/');
   const resenas = page.getByRole('region', { name: 'Lo que dicen nuestros huéspedes' });
-  await expect(resenas.getByText('La decoración y la piscina')).toBeVisible();
+  await expect(resenas.getByText('Un fin de semana perfecto en familia, todo impecable.')).toBeVisible();
+  // "lo que más le gustó" no se publica: solo el comentario
+  await expect(page.getByText('La piscina', { exact: true })).toHaveCount(0);
   await expect(resenas.getByText('María G.')).toBeVisible();
   await expect(resenas.getByText('¡Gracias María! Te esperamos.')).toBeVisible();
   await expect(page.getByText('Más toallas de playa')).toHaveCount(0);
@@ -55,7 +60,7 @@ test('encuesta: el huésped opina, el panel la publica y aparece en la página s
 
 test('sin permiso del huésped no se puede publicar', async ({ page }) => {
   test.setTimeout(60_000);
-  await answer(page, { liked: 'Todo', improve: 'El agua caliente', permiso: 'No' });
+  await answer(page, { liked: 'Todo', improve: 'El agua caliente', comment: 'Bien en general', permiso: 'No' });
   await page.goto('/admin/opiniones');
   const card = page.getByRole('article', { name: 'Opinión de un huésped' });
   await expect(card.getByRole('button', { name: 'Publicar' })).toBeDisabled();
@@ -65,6 +70,7 @@ test('sin permiso del huésped no se puede publicar', async ({ page }) => {
 test('la única pregunta obligatoria es qué mejorarías', async ({ page }) => {
   await page.goto('/opinion');
   await page.waitForTimeout(3100);
+  await page.getByLabel('Deja un comentario sobre tu estadía').fill('Muy lindo todo');
   await page.getByLabel(/Tu nombre/).fill('Ana');
   await page.getByRole('button', { name: 'Enviar mi opinión' }).click();
   await expect(page.getByRole('alert')).toContainText('qué mejorarías');
