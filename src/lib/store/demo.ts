@@ -1,10 +1,11 @@
 // Modo demo: todo se guarda en este navegador. Los datos de ejemplo son inventados.
-import type { CashMovement, Payment, Property, PublicData, Reservation, StayOps } from '../types';
+import type { CashMovement, Payment, Property, PublicData, PublicReview, Reservation, Review, StayOps } from '../types';
+import { reviewScore } from '../types';
 import { addDays, todayISO } from '../dates';
 import { conflictsFor } from '../availability';
 import type { AppData, DataStore } from './types';
 import { DEFAULT_SETTINGS, OWN_DEFAULTS, ownProperty } from './types';
-import { sanitizeCash, sanitizeGuests, sanitizeOpsPatch, sanitizePayment, sanitizeProperty, sanitizeReservation, sanitizeVehicles } from './validate';
+import { sanitizeReview, sanitizeCash, sanitizeGuests, sanitizeOpsPatch, sanitizePayment, sanitizeProperty, sanitizeReservation, sanitizeVehicles } from './validate';
 import { emptyOps, staffStaysFromApp } from '../ops';
 
 const KEY = 'tudia-demo-v3';
@@ -38,6 +39,7 @@ function seed(): AppData {
     airbnb_url: '',
     instagram_url: '',
     tiktok_url: '',
+    google_review_url: '',
   });
   const mk = (p: Partial<Reservation> & Pick<Reservation, 'id' | 'check_in' | 'check_out' | 'contact_name' | 'channel'>): Reservation => ({
     property_id: 'demo-30',
@@ -81,6 +83,7 @@ function seed(): AppData {
     ops,
     cash,
     team: [],
+    reviews: [],
     reservations: [
       mk({
         id: 'demo-1', contact_name: 'Familia Márquez', contact_phone: '0414 555 0101', channel: 'airbnb',
@@ -123,7 +126,7 @@ function read(): AppData {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as AppData;
-      if (parsed && Array.isArray(parsed.reservations) && Array.isArray(parsed.properties) && Array.isArray(parsed.payments) && parsed.settings) return parsed;
+      if (parsed && Array.isArray(parsed.reservations) && Array.isArray(parsed.properties) && Array.isArray(parsed.payments) && parsed.settings) return { ...parsed, reviews: parsed.reviews ?? [] };
     }
   } catch {
     /* almacenamiento bloqueado o dañado: se usan los datos de ejemplo */
@@ -275,12 +278,47 @@ export const demoStore: DataStore = {
         .map((p) => ({
           id: p.id, kind: p.kind, title: p.title || p.name, unit: p.unit, conjunto: p.conjunto, summary: p.summary, description: p.description,
           capacity: p.capacity, bedrooms: p.bedrooms, beds: p.beds, bathrooms: p.bathrooms, nightly_usd: p.nightly_usd, promo: p.promo, amenities: p.amenities, photos: p.photos,
-          contact_whatsapp: p.kind === 'propio' ? p.contact_whatsapp : '', airbnb_url: p.kind === 'propio' ? p.airbnb_url : '', instagram_url: p.kind === 'propio' ? p.instagram_url : '', tiktok_url: p.kind === 'propio' ? p.tiktok_url : '',
+          contact_whatsapp: p.kind === 'propio' ? p.contact_whatsapp : '', airbnb_url: p.kind === 'propio' ? p.airbnb_url : '', instagram_url: p.kind === 'propio' ? p.instagram_url : '', tiktok_url: p.kind === 'propio' ? p.tiktok_url : '', google_review_url: p.kind === 'propio' ? (p.google_review_url ?? '') : '',
         })),
       busy: d.reservations
         .filter((r) => ids.has(r.property_id) && r.status === 'confirmada' && r.check_out > from && r.check_in < to)
         .map((r) => ({ property_id: r.property_id, check_in: r.check_in, check_out: r.check_out })),
+      reviews: (d.reviews ?? [])
+        .filter((r) => ids.has(r.property_id) && r.status === 'publicada' && r.permission !== 'no' && r.liked)
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .map((r): PublicReview => {
+          const [first = '', second = ''] = r.author_name.split(' ');
+          return {
+            id: r.id, property_id: r.property_id, author: !first ? 'Huésped' : second ? `${first} ${second[0]}.` : first, nights: r.nights, rating: reviewScore(r),
+            cleanliness: r.cleanliness, beds: r.beds, ac: r.ac, wifi: r.wifi, communication: r.communication, recommend: r.recommend,
+            liked: r.liked, reply: r.reply, created_at: r.created_at,
+          };
+        }),
     };
+  },
+  async submitReview(propertyId, input) {
+    const clean = sanitizeReview(input);
+    const d = get();
+    if (!d.properties.some((p) => p.id === propertyId && p.published)) throw new Error('Ese apartamento no existe.');
+    const review: Review = { ...clean, id: uid(), property_id: propertyId, status: 'pendiente', reply: '', created_at: new Date().toISOString() };
+    commit({ ...d, reviews: [...(d.reviews ?? []), review] });
+  },
+  async moderateReview(id, patch) {
+    const d = get();
+    const r = (d.reviews ?? []).find((x) => x.id === id);
+    if (!r) throw new Error('No encontré esa respuesta.');
+    if (patch.status === 'publicada' && (r.permission === 'no' || !r.liked)) throw new Error('El huésped no dio permiso para publicarla.');
+    const next = { ...r, ...(patch.status ? { status: patch.status } : {}), ...(patch.reply != null ? { reply: patch.reply.trim().slice(0, 500) } : {}) };
+    commit({ ...d, reviews: d.reviews.map((x) => (x.id === id ? next : x)) });
+  },
+  async importReview(propertyId, input, createdAt) {
+    const d = get();
+    const review: Review = { ...input, id: uid(), property_id: propertyId, status: 'pendiente', reply: '', created_at: createdAt ?? new Date().toISOString() };
+    commit({ ...d, reviews: [...(d.reviews ?? []), review] });
+  },
+  async deleteReview(id) {
+    const d = get();
+    commit({ ...d, reviews: (d.reviews ?? []).filter((x) => x.id !== id) });
   },
   async addPayment(input) {
     const p = sanitizePayment(input);

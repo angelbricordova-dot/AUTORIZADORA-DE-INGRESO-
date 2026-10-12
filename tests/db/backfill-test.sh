@@ -35,3 +35,7 @@ V=$($PSQL -At -c "set role authenticated; select set_config('request.jwt.claim.s
 $PSQL -f "$ROOT/supabase/migrations/20261015000000_tiktok.sql"
 T=$($PSQL -At -c "set role anon; select count(*) || '/' || coalesce(max(tiktok_url), 'x') from public.public_listings();")
 [ "$T" = "1/" ] && echo "TIKTOK SIN ROMPER LA PÁGINA: OK" || { echo "FALLA tiktok: $T"; exit 1; }
+# v6: encuesta y reseñas
+$PSQL -f "$ROOT/supabase/migrations/20261016000000_resenas.sql"
+R=$($PSQL -At -c "set role anon; select count(*) from public.public_reviews();")
+[ "$R" = "0" ] && echo "RESEÑAS SIN ROMPER LA PÁGINA: OK" || { echo "FALLA reseñas: $R"; exit 1; }

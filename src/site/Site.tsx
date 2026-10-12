@@ -11,6 +11,7 @@ import { ThemeToggle } from '../components/ThemeToggle';
 import { useReveal } from './useReveal';
 import { Lobby } from './Lobby';
 import { ApartmentPage } from './Apartment';
+import { SurveyPage } from './Survey';
 import { slugUnit } from './parts';
 import './site.css';
 
@@ -35,7 +36,7 @@ export function Site() {
   const m = pathname.match(/^\/apartamento\/([^/]+)\/?$/);
   const slug = m ? decodeURIComponent(m[1]) : null;
   const listing = slug && data ? data.listings.find((l) => slugUnit(l.unit) === slug) : undefined;
-  const page = pathname === '/' || pathname === '' ? 'lobby' : slug ? 'apto' : 'none';
+  const page = pathname === '/' || pathname === '' ? 'lobby' : slug ? 'apto' : /^\/opinion\/?$/.test(pathname) ? 'opinion' : 'none';
   useReveal();
 
   useEffect(() => {
@@ -81,6 +82,7 @@ export function Site() {
 
       <div className="page-swap" key={page + (slug ?? '')}>
         {page === 'lobby' ? <Lobby data={data} own={own} phone={phone} /> : null}
+        {page === 'opinion' ? <SurveyPage data={data} own={own} phone={phone} query={new URLSearchParams(search)} /> : null}
         {page === 'apto' && listing && data ? <ApartmentPage key={listing.id} l={listing} data={data} phone={phone} query={new URLSearchParams(search)} /> : null}
         {page === 'apto' && !data && !error ? (
           <div className="site-main">

@@ -99,6 +99,8 @@ export interface Property {
   airbnb_url: string;
   instagram_url: string;
   tiktok_url: string;
+  /** Enlace "Escribir una opinión" del perfil de Google */
+  google_review_url: string;
 }
 
 export type PropertyInput = Omit<Property, 'id'> & { id?: string };
@@ -125,6 +127,7 @@ export type PublicListing = Pick<
   | 'airbnb_url'
   | 'instagram_url'
   | 'tiktok_url'
+  | 'google_review_url'
 >;
 
 export interface BusyRange {
@@ -136,6 +139,73 @@ export interface BusyRange {
 export interface PublicData {
   listings: PublicListing[];
   busy: BusyRange[];
+  /** Reseñas aprobadas y con permiso del huésped */
+  reviews: PublicReview[];
+}
+
+// ---------------------------------------------------------------------
+// Encuesta de huéspedes (reemplaza el Google Form) y reseñas públicas
+// ---------------------------------------------------------------------
+export type ReviewPermission = 'si' | 'no' | 'consultar';
+export type ReviewStatus = 'pendiente' | 'publicada' | 'oculta';
+
+export interface ReviewInput {
+  author_name: string;
+  nights: number | null;
+  cleanliness: number | null;
+  beds: number | null;
+  ac: number | null;
+  wifi: number | null;
+  communication: number | null;
+  kitchen_ok: boolean | null;
+  kitchen_missing: string;
+  /** 1 a 10 */
+  recommend: number | null;
+  /** Lo que más le gustó: es lo único que puede publicarse */
+  liked: string;
+  /** Lo que mejoraría: privado */
+  improve: string;
+  permission: ReviewPermission;
+}
+
+export interface Review extends ReviewInput {
+  id: string;
+  property_id: string;
+  status: ReviewStatus;
+  reply: string;
+  created_at: string;
+}
+
+export interface PublicReview {
+  id: string;
+  property_id: string;
+  author: string;
+  nights: number | null;
+  /** Promedio de las notas de 1 a 5 */
+  rating: number | null;
+  cleanliness: number | null;
+  beds: number | null;
+  ac: number | null;
+  wifi: number | null;
+  communication: number | null;
+  recommend: number | null;
+  liked: string;
+  reply: string;
+  created_at: string;
+}
+
+export const REVIEW_ASPECTS: { key: 'cleanliness' | 'beds' | 'ac' | 'wifi' | 'communication'; label: string; question: string }[] = [
+  { key: 'cleanliness', label: 'Limpieza', question: '¿Qué tan limpio encontraste el apartamento al llegar?' },
+  { key: 'beds', label: 'Camas', question: '¿Qué tan cómodas fueron las camas?' },
+  { key: 'ac', label: 'Aire acondicionado', question: '¿Cómo estuvo la temperatura y el funcionamiento de los A/C?' },
+  { key: 'wifi', label: 'WiFi', question: '¿Cómo estuvo el WiFi?' },
+  { key: 'communication', label: 'Comunicación', question: '¿Qué tan clara fue la comunicación con nosotros antes y durante tu estadía?' },
+];
+
+/** Promedio de las notas de 1 a 5 que respondió (null si no respondió ninguna). */
+export function reviewScore(r: Pick<ReviewInput, 'cleanliness' | 'beds' | 'ac' | 'wifi' | 'communication'>): number | null {
+  const v = [r.cleanliness, r.beds, r.ac, r.wifi, r.communication].filter((x): x is number => typeof x === 'number');
+  return v.length ? Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 10) / 10 : null;
 }
 
 export const AMENITIES = [

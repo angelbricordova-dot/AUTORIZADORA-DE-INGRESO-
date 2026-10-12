@@ -2312,3 +2312,30 @@ a[href^='x-apple-data-detectors:'] {
 .login-hero.login-work {
   background: linear-gradient(160deg, #f2a64a 0%, #d9653a 55%, #9c3d2b 100%);
 }
+
+/* Opiniones en el panel */
+.review-scores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  color: var(--ink-2);
+}
+.review-text {
+  margin: 2px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.review-private {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+.review-private svg {
+  width: 13px;
+  height: 13px;
+  vertical-align: -2px;
+}
+.ask-review {
+  text-decoration: none;
+  color: inherit;
+}

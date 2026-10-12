@@ -9,6 +9,7 @@ import { LogoMark } from '../components/Logo';
 import { BottomSheet } from '../components/BottomSheet';
 import { RangeCalendar, type Range } from './RangeCalendar';
 import { Facts, ListingCard, aptPath, listingName } from './parts';
+import { ReviewInvite, ReviewsSection } from './Reviews';
 
 const HIGHLIGHTS = ['Piscina', 'WiFi de fibra óptica', 'Aire acondicionado', 'A 5 min de los muelles', 'Tanque de agua propio', 'Estacionamiento', 'Hasta 7 personas', 'Cayos de Morrocoy'];
 
@@ -144,6 +145,9 @@ export function Lobby({ data, own, phone }: { data: PublicData | null; own?: Pub
             <div className="skeleton" style={{ height: 380 }} />
           )}
         </section>
+
+        <ReviewsSection reviews={data?.reviews ?? []} />
+        <ReviewInvite l={own} />
 
         <section className="site-section" aria-labelledby="h-pasos" data-reveal>
           <h2 id="h-pasos">Reservar es así de fácil</h2>

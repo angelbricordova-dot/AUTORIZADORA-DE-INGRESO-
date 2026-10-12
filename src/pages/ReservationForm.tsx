@@ -10,6 +10,8 @@ import { useToast } from '../components/Toast';
 import { AuthBadge } from '../components/StayRow';
 import { PropertyChips } from '../components/PropertyChips';
 import { PaymentSheet } from '../components/Ops';
+import { surveyLink } from './Reviews';
+import { whatsappUrl } from '../lib/publicAvailability';
 
 const STATUSES: { id: ReservationStatus; label: string }[] = [
   { id: 'confirmada', label: 'Confirmada' },
@@ -147,6 +149,28 @@ export function ReservationForm({ id, query }: { id?: string; query: URLSearchPa
       ) : null}
 
       {existing && paymentsReady ? <PaymentsSection r={existing} total={total} /> : null}
+
+      {existing && existing.status !== 'cancelada' && existing.check_out <= today ? (
+        <a
+          className="panel panel-pad spread ask-review"
+          href={whatsappUrl(
+            existing.contact_phone.replace(/^0/, '58'),
+            `¡Hola! Gracias por quedarte con nosotros en Tucacas. ¿Nos regalas 2 minutos para contarnos cómo te fue? ${surveyLink(data.properties.find((p) => p.id === existing.property_id)?.unit ?? '30')}`,
+          )}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span>
+            <strong>Pedir su opinión</strong>
+            <span className="small muted" style={{ display: 'block' }}>
+              Le llega la encuesta de la estadía por WhatsApp
+            </span>
+          </span>
+          <span className="btn btn-whatsapp btn-small" aria-hidden="true">
+            <Icon name="send" /> Enviar
+          </span>
+        </a>
+      ) : null}
 
       <section className="section" aria-labelledby="h-fechas">
         <h2 id="h-fechas">Fechas</h2>

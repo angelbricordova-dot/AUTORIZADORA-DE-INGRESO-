@@ -12,6 +12,14 @@ export function MorePage() {
   const items: { to: string; icon: IconName; title: string; sub: string; external?: boolean }[] = [
     { to: href('/zuleika'), icon: 'broom', title: data.settings.staff_name, sub: 'Limpieza, llaves, garantías y el efectivo que guarda' },
     { to: href('/apartamentos'), icon: 'building', title: 'Apartamentos y catálogo', sub: `N°${data.settings.unit} y ${partners} ${partners === 1 ? 'aliado' : 'aliados'} · precios, fotos y comisiones` },
+    {
+      to: href('/opiniones'),
+      icon: 'star',
+      title: 'Opiniones de huéspedes',
+      sub: (data.reviews ?? []).some((r) => r.status === 'pendiente')
+        ? `${(data.reviews ?? []).filter((r) => r.status === 'pendiente').length} por revisar · encuesta, reseñas e importar el Google Form`
+        : 'Encuesta de la estadía, reseñas publicadas e importar el Google Form',
+    },
     { to: href('/accesos'), icon: 'user', title: 'Accesos al panel', sub: data.team.length ? data.team.map((m) => m.name).join(', ') : 'Administradoras (Oniris, Angélica) y Zuleika' },
     { to: href('/ajustes'), icon: 'idcard', title: 'Datos de la planilla', sub: 'Propietaria, cédula y WhatsApp de la administradora' },
     { to: '/', icon: 'eye', title: 'Ver la página pública', sub: 'Lo que ven los huéspedes' },

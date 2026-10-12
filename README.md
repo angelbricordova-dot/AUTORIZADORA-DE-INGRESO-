@@ -32,6 +32,8 @@ Página web del apartamento **N°30** del Conjunto Residencial **Pescadores I** 
 - "Lo que incluye" muestra 3 servicios y el resto se despliega.
 - Al pie: WhatsApp, Instagram, TikTok (se carga en Más → Apartamentos y catálogo → Tu apartamento → Contacto y redes) y Airbnb.
 - El N°30 aparece siempre primero y destacado, también al buscar fechas.
+- **Opiniones** (reemplaza el Google Form): en `/opinion` el huésped responde las mismas preguntas de antes (noches, limpieza, camas, A/C, cocina, WiFi, comunicación, recomendación del 1 al 10, qué le gustó, qué mejoraría y permiso para usarlo como testimonio). Lo que mejoraría es privado. Lo que más le gustó se publica en la página solo si dio permiso y alguien del panel la aprueba (Más → Opiniones de huéspedes). Si quedó muy contento y cargaste el enlace de tu perfil de Google, al final se le invita a dejar la opinión también en Google.
+- Las respuestas viejas del Google Form se importan en **Más → Opiniones de huéspedes → Importar del formulario anterior** (CSV de Google Sheets).
 - Calendario con noches libres y ocupadas, precio total y **reservar por WhatsApp**.
 - **Más de 7 personas**: primero ofrece **consultar una excepción por WhatsApp** (con cuántos son niños); debajo, otros apartamentos del conjunto para el grupo.
 
@@ -60,6 +62,7 @@ npm run dev
    4. `20261013000000_equipo_pagos.sql` (pagos, Zuleika, garantías, caja y fotos reales del N°30)
    5. `20261014000000_varias_administradoras.sql` (Oniris, Angélica y tú en el mismo panel)
    6. `20261015000000_tiktok.sql` (enlace de TikTok en la página)
+   7. `20261016000000_resenas.sql` (encuesta de la estadía y reseñas en la página)
 
    Si ya ejecutaste los anteriores, solo corre el que falta. Los pagos que ya tenías anotados se conservan como "Registrado antes del detalle de pagos".
 3. **Authentication → Sign In / Providers → Email:** desactiva **"Allow new users to sign up"** (nadie puede registrarse por su cuenta).

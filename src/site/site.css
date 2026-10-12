@@ -1420,3 +1420,311 @@
 .site-none {
   padding-bottom: env(safe-area-inset-bottom);
 }
+
+/* ---------------- Opiniones ---------------- */
+.stars {
+  display: inline-flex;
+  gap: 2px;
+  vertical-align: middle;
+}
+.star {
+  width: var(--s, 16px);
+  height: var(--s, 16px);
+  background: linear-gradient(90deg, var(--sun) var(--fill, 0%), var(--line-strong) var(--fill, 0%));
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.8l2.85 5.8 6.4.93-4.63 4.5 1.1 6.37L12 17.4l-5.72 3 1.1-6.37-4.63-4.5 6.4-.93z'/%3E%3C/svg%3E") center / contain no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.8l2.85 5.8 6.4.93-4.63 4.5 1.1 6.37L12 17.4l-5.72 3 1.1-6.37-4.63-4.5 6.4-.93z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.review-summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.review-big {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--brand-text);
+}
+.aspect-bars {
+  list-style: none;
+  margin: 0;
+  padding: 14px 16px;
+  display: grid;
+  gap: 8px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.aspect-bars li {
+  display: grid;
+  grid-template-columns: 9.5rem 1fr auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9375rem;
+}
+.aspect-bars .bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.aspect-bars .bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand);
+  transform-origin: left;
+  transform: scaleX(var(--p));
+}
+.revealed .aspect-bars .bar i {
+  animation: bar-grow 900ms var(--ease-out) both;
+}
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+.review-track {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  margin: 0 calc(var(--gutter) * -1);
+  padding: 4px var(--gutter) 10px;
+  scrollbar-width: none;
+}
+.review-track::-webkit-scrollbar {
+  display: none;
+}
+.review-card {
+  flex: none;
+  width: min(84%, 340px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  scroll-snap-align: start;
+}
+.review-card blockquote {
+  margin: 0;
+  font-size: 1.0625rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.review-card blockquote::before {
+  content: '“';
+}
+.review-card blockquote::after {
+  content: '”';
+}
+.review-reply {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--brand-softer);
+  color: var(--ink-2);
+}
+.invite-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 14px;
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  background: var(--sun-soft);
+}
+.invite-card h2 {
+  font-size: 1.25rem;
+}
+.invite-card .grow {
+  flex: 1 1 200px;
+}
+.invite-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: var(--sun);
+  color: #0b3a36;
+}
+.invite-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Encuesta */
+.survey-head {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 22px 20px;
+  border-radius: var(--radius-lg);
+  color: #fff;
+  background: linear-gradient(150deg, #22947a, #0e4f4a);
+}
+.survey-head h1 {
+  color: #fff;
+  font-size: clamp(1.6rem, 7vw, 2.2rem);
+  max-width: 16ch;
+}
+.survey-head p {
+  color: rgba(255, 255, 255, 0.88);
+}
+.survey-art {
+  position: absolute;
+  right: -24px;
+  bottom: -20px;
+  width: 150px;
+  height: auto;
+  color: rgba(255, 255, 255, 0.14);
+}
+.survey-form {
+  gap: 12px;
+}
+.q {
+  margin: 0;
+  padding: 16px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.q legend {
+  float: left;
+  width: 100%;
+  padding: 0;
+  font-weight: 650;
+  line-height: 1.35;
+}
+.q legend + * {
+  clear: both;
+}
+.req {
+  color: var(--bad);
+}
+.star-pick {
+  display: flex;
+  gap: 6px;
+}
+.star-pick button {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  background: var(--surface-2);
+  color: var(--line-strong);
+  cursor: pointer;
+  transition:
+    transform 220ms var(--ease-out),
+    background-color 200ms ease,
+    color 200ms ease;
+}
+.star-pick svg {
+  width: 28px;
+  height: 28px;
+  fill: currentColor;
+}
+.star-pick button.on {
+  background: var(--sun-soft);
+  color: var(--sun);
+  animation: star-pop 360ms var(--ease-out) both;
+  animation-delay: calc(var(--n) * 30ms);
+}
+.star-pick button:active {
+  transform: scale(0.88);
+}
+@keyframes star-pop {
+  40% {
+    transform: scale(1.18);
+  }
+}
+.nps {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 4px;
+}
+.nps button {
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background-color 180ms ease,
+    transform 180ms var(--ease-out);
+}
+.nps button.on {
+  background: var(--brand);
+  color: #fff;
+  transform: translateY(-2px);
+}
+.nps-legend {
+  display: flex;
+  justify-content: space-between;
+}
+.hp {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+.thanks-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 24px 20px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lift);
+  animation: rise 500ms var(--ease-out) both;
+}
+.thanks-check {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--ok);
+  color: #fff;
+  animation: star-pop 600ms var(--ease-out) both;
+}
+.thanks-check svg {
+  width: 34px;
+  height: 34px;
+}
+.google-ask {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: var(--radius);
+  background: var(--sun-soft);
+}
+@media (prefers-reduced-motion: reduce) {
+  .star-pick button.on,
+  .thanks-check,
+  .revealed .aspect-bars .bar i {
+    animation: none;
+  }
+}

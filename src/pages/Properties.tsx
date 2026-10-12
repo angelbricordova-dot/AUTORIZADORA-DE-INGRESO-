@@ -93,6 +93,7 @@ const NEW_PARTNER: PropertyInput = {
   airbnb_url: '',
   instagram_url: '',
   tiktok_url: '',
+  google_review_url: '',
 };
 
 export function PropertyForm({ id }: { id?: string }) {
@@ -395,6 +396,18 @@ export function PropertyForm({ id }: { id?: string }) {
                 value={f.tiktok_url ?? ''}
                 onChange={(e) => set('tiktok_url', e.target.value)}
               />
+            </div>
+            <div className="field">
+              <label htmlFor="gr">Enlace para opinar en Google</label>
+              <input
+                id="gr"
+                className="input"
+                inputMode="url"
+                placeholder="https://g.page/r/…/review"
+                value={f.google_review_url ?? ''}
+                onChange={(e) => set('google_review_url', e.target.value)}
+              />
+              <span className="hint">En tu perfil de Google: “Solicita opiniones” → copiar enlace. Se le ofrece a quien termina la encuesta contento.</span>
             </div>
           </div>
         </details>

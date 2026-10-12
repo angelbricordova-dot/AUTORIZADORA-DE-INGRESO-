@@ -1,5 +1,5 @@
 // Punto 14: validación antes de enviar a la base de datos (la base vuelve a validar con CHECKs).
-import type { CashInput, Guest, PaymentInput, PropertyInput, ReservationInput, StayOpsPatch, Vehicle } from '../types';
+import type { ReviewInput, CashInput, Guest, PaymentInput, PropertyInput, ReservationInput, StayOpsPatch, Vehicle } from '../types';
 import { CHANNELS, MAX_GUESTS, MAX_VEHICLES, STAY_TYPES } from '../types';
 import { isValidISO, nightsBetween } from '../dates';
 import { cleanPersonName, cleanPhone, cleanText } from '../sanitize';
@@ -84,11 +84,14 @@ export function sanitizeProperty(p: PropertyInput): PropertyInput {
     airbnb_url: cleanText(p.airbnb_url, 300),
     instagram_url: cleanText(p.instagram_url, 300),
     tiktok_url: cleanText(p.tiktok_url ?? '', 300),
+    google_review_url: cleanText(p.google_review_url ?? '', 300),
   };
   if (!out.unit) throw new Error('Escribe el número del apartamento.');
   if (!out.name) out.name = out.kind === 'propio' ? `Apartamento N°${out.unit}` : `Apto ${out.unit}`;
   if (out.airbnb_url && !/^https:\/\/(www\.)?airbnb\.[a-z.]+\//.test(out.airbnb_url)) throw new Error('El enlace de Airbnb no es válido.');
   if (out.instagram_url && !/^https:\/\/(www\.)?instagram\.com\//.test(out.instagram_url)) throw new Error('El enlace de Instagram no es válido.');
+  if (out.google_review_url && !/^https:\/\/(g\.page|search\.google\.com|maps\.app\.goo\.gl|www\.google\.com|g\.co|goo\.gl)\//.test(out.google_review_url))
+    throw new Error('El enlace de opiniones de Google no es válido. Cópialo desde tu perfil de Google → "Solicita opiniones".');
   if (out.tiktok_url && !/^https:\/\/(www\.|vm\.)?tiktok\.com\//.test(out.tiktok_url)) throw new Error('El enlace de TikTok no es válido (debe empezar con https://www.tiktok.com/).');
   if (out.kind === 'aliado' && out.nightly_usd != null && out.partner_cost_usd != null && out.nightly_usd < out.partner_cost_usd)
     throw new Error('El precio público no puede ser menor a lo que cobra el dueño.');
@@ -139,5 +142,34 @@ export function sanitizeOpsPatch(p: StayOpsPatch): StayOpsPatch {
   if ('deposit_usd' in p) out.deposit_usd = Math.max(0, Math.min(10000, money2(p.deposit_usd)));
   if ('deposit_returned_usd' in p) out.deposit_returned_usd = p.deposit_returned_usd == null ? null : Math.max(0, money2(p.deposit_returned_usd));
   if ('note' in p) out.note = cleanText(p.note, 500);
+  return out;
+}
+
+const score = (v: unknown, max: number) => {
+  const n = Math.round(Number(v));
+  return v == null || (v as unknown) === '' || !Number.isFinite(n) ? null : n >= 1 && n <= max ? n : null;
+};
+
+/** Encuesta del huésped: limpia y valida antes de enviarla (la base vuelve a validar). */
+export function sanitizeReview(r: ReviewInput): ReviewInput {
+  const text = (v: string, max: number) => (v || '').normalize('NFC').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, '').trim().slice(0, max);
+  const out: ReviewInput = {
+    author_name: cleanText(r.author_name, 60),
+    nights: score(r.nights, 60),
+    cleanliness: score(r.cleanliness, 5),
+    beds: score(r.beds, 5),
+    ac: score(r.ac, 5),
+    wifi: score(r.wifi, 5),
+    communication: score(r.communication, 5),
+    kitchen_ok: r.kitchen_ok == null ? null : !!r.kitchen_ok,
+    kitchen_missing: r.kitchen_ok === false ? text(r.kitchen_missing, 300) : '',
+    recommend: score(r.recommend, 10),
+    liked: text(r.liked, 1000),
+    improve: text(r.improve, 1000),
+    permission: r.permission === 'si' || r.permission === 'consultar' ? r.permission : 'no',
+  };
+  if (out.improve.length < 2) throw new Error('Cuéntanos qué mejorarías: es la única pregunta obligatoria.');
+  if (out.permission !== 'no' && out.author_name.length < 2) throw new Error('Escribe tu nombre para poder mostrar tu opinión.');
+  if (/(https?:\/\/|www\.)/i.test(`${out.liked} ${out.improve} ${out.kitchen_missing}`)) throw new Error('La encuesta no puede llevar enlaces.');
   return out;
 }

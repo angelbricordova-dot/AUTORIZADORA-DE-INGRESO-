@@ -14,6 +14,9 @@ import type {
   StayOps,
   StayOpsPatch,
   TeamMember,
+  Review,
+  ReviewInput,
+  ReviewStatus,
   TeamRole,
   Vehicle,
 } from '../types';
@@ -41,6 +44,8 @@ export interface AppData {
   ops: StayOps[];
   cash: CashMovement[];
   team: TeamMember[];
+  /** Respuestas de la encuesta de huéspedes (todas, también lo privado) */
+  reviews: Review[];
   /** La base de datos todavía no tiene la migración de equipo y pagos */
   migrationPending?: boolean;
 }
@@ -73,6 +78,13 @@ export interface DataStore {
   removeTeamMember(memberId: string): Promise<void>;
   /** Si quien entró es del equipo (Zuleika) devuelve su nombre; si es la dueña, null. */
   staffRole(): Promise<{ name: string } | null>;
+  /** Encuesta de un huésped (página pública). */
+  submitReview(propertyId: string, input: ReviewInput): Promise<void>;
+  /** Publicar, ocultar o responder una reseña. */
+  moderateReview(id: string, patch: { status?: ReviewStatus; reply?: string }): Promise<void>;
+  deleteReview(id: string): Promise<void>;
+  /** Respuesta del Google Form anterior (queda pendiente, con su fecha original). */
+  importReview(propertyId: string, input: ReviewInput, createdAt: string | null): Promise<void>;
   /** Guarda el nombre con el que la app saluda a quien entró. */
   saveMyName(name: string): Promise<void>;
   /** Lo que ve el equipo: agenda sin datos personales, sus cobros, tareas y caja. */
@@ -140,6 +152,7 @@ export const OWN_DEFAULTS: Omit<Property, 'id'> = {
   airbnb_url: 'https://www.airbnb.co.ve/rooms/1622130249785584357',
   instagram_url: 'https://www.instagram.com/aribnb.tucacas/',
   tiktok_url: '',
+  google_review_url: '',
 };
 
 export function ownProperty(d: Pick<AppData, 'properties'>): Property | undefined {

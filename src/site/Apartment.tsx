@@ -8,6 +8,7 @@ import { alternatives, bookingMessage, exceptionMessage, isBusyNight, isRangeFre
 import { Icon } from '../components/Icon';
 import { RangeCalendar, nextFreeRange, type Range } from './RangeCalendar';
 import { Lightbox } from './Lightbox';
+import { ReviewInvite, ReviewsSection } from './Reviews';
 import { Amenities, Facts, Hero, ListingCard, MAPS_URL, Mosaic, ResultCard, listingName } from './parts';
 
 export function ApartmentPage({ l, data, phone, query }: { l: PublicListing; data: PublicData; phone: string; query: URLSearchParams }) {
@@ -182,6 +183,9 @@ export function ApartmentPage({ l, data, phone, query }: { l: PublicListing; dat
             </div>
           </section>
         ) : null}
+
+        <ReviewsSection reviews={data.reviews.filter((r) => r.property_id === l.id)} title="Opiniones de quienes se quedaron aquí" />
+        <ReviewInvite l={l} />
 
         <section className="site-section" aria-labelledby="h-donde" data-reveal>
           <h2 id="h-donde">Dónde queda</h2>

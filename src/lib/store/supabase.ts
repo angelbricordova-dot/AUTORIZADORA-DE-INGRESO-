@@ -1,12 +1,12 @@
 // Modo real: Supabase con RLS. Solo se usa la llave pública (anon); la seguridad la ponen las políticas.
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { BusyRange, CashMovement, Payment, Property, PropertyInput, PublicData, PublicListing, Reservation, StaffStay, StayOps, TeamMember } from '../types';
+import type { PublicReview, Review, BusyRange, CashMovement, Payment, Property, PropertyInput, PublicData, PublicListing, Reservation, StaffStay, StayOps, TeamMember } from '../types';
 import { cleanText } from '../sanitize';
 import { formatCedula } from '../cedula';
 import { cleanSupabaseKey, cleanSupabaseUrl } from '../supabaseConfig';
 import type { AppData, DataStore } from './types';
 import { DEFAULT_SETTINGS, OWN_DEFAULTS, friendlyError, nameFromEmail, type Me } from './types';
-import { sanitizeCash, sanitizeGuests, sanitizeOpsPatch, sanitizePayment, sanitizeProperty, sanitizeReservation, sanitizeVehicles } from './validate';
+import { sanitizeReview, sanitizeCash, sanitizeGuests, sanitizeOpsPatch, sanitizePayment, sanitizeProperty, sanitizeReservation, sanitizeVehicles } from './validate';
 import { addDays } from '../dates';
 
 const url = cleanSupabaseUrl(import.meta.env.VITE_SUPABASE_URL as string | undefined);
@@ -52,10 +52,12 @@ function mapRow(r: Row): Reservation {
 const PROP_COLUMNS_V2 =
   'id, kind, name, title, conjunto, unit, summary, description, capacity, bedrooms, nightly_usd, partner_cost_usd, promo, amenities, photos, published, sort, owner_name, owner_cedula, contact_whatsapp, airbnb_url, instagram_url';
 const PROP_COLUMNS_V3 = `${PROP_COLUMNS_V2}, beds, bathrooms`;
-const PROP_COLUMNS = `${PROP_COLUMNS_V3}, tiktok_url`;
+const PROP_COLUMNS_V4 = `${PROP_COLUMNS_V3}, tiktok_url`;
+const PROP_COLUMNS = `${PROP_COLUMNS_V4}, google_review_url`;
 
-type PropRow = Omit<Property, 'nightly_usd' | 'partner_cost_usd' | 'beds' | 'bathrooms' | 'tiktok_url'> & {
+type PropRow = Omit<Property, 'nightly_usd' | 'partner_cost_usd' | 'beds' | 'bathrooms' | 'tiktok_url' | 'google_review_url'> & {
   tiktok_url?: string | null;
+  google_review_url?: string | null;
   nightly_usd: number | string | null;
   partner_cost_usd: number | string | null;
   beds?: number | null;
@@ -73,6 +75,7 @@ function mapProp(r: PropRow): Property {
     beds: r.beds ?? null,
     bathrooms: r.bathrooms ?? null,
     tiktok_url: r.tiktok_url ?? '',
+    google_review_url: r.google_review_url ?? '',
   };
 }
 
@@ -81,16 +84,22 @@ const missingSchema = (e: { code?: string } | null) => !!e && ['42703', '42P01',
 let schemaV3: boolean | null = null;
 /** ¿Ya existe la columna de TikTok (migración 20261015000000_tiktok.sql)? */
 let schemaTiktok: boolean | null = null;
+/** ¿Ya existe la columna del enlace de Google (migración de reseñas)? */
+let schemaGoogle: boolean | null = null;
 
-function propFields(p: PropertyInput) {
+function propFields(p: PropertyInput): Record<string, unknown> {
   const { id: _id, ...rest } = p;
   if (schemaV3 === false) {
     const { beds: _b, bathrooms: _ba, tiktok_url: _t, ...v2 } = rest;
     return v2;
   }
   if (schemaTiktok === false) {
-    const { tiktok_url: _t, ...v3 } = rest;
+    const { tiktok_url: _t, google_review_url: _g, ...v3 } = rest;
     return v3;
+  }
+  if (schemaGoogle === false) {
+    const { google_review_url: _g, ...v4 } = rest;
+    return v4;
   }
   return rest;
 }
@@ -101,7 +110,13 @@ async function loadProperties(sb: SupabaseClient): Promise<Property[]> {
   if (!res.error) {
     schemaV3 = true;
     schemaTiktok = true;
+    schemaGoogle = true;
+  } else if (missingSchema(res.error) && !(res = await select(PROP_COLUMNS_V4)).error) {
+    schemaV3 = true;
+    schemaTiktok = true;
+    schemaGoogle = false;
   } else if (missingSchema(res.error)) {
+    schemaGoogle = false;
     schemaTiktok = false;
     res = await select(PROP_COLUMNS_V3);
     if (!res.error) schemaV3 = true;
@@ -116,7 +131,7 @@ async function loadProperties(sb: SupabaseClient): Promise<Property[]> {
     const { data: created, error: e2 } = await sb
       .from('properties')
       .insert(propFields(sanitizeProperty(OWN_DEFAULTS)))
-      .select(schemaV3 === false ? PROP_COLUMNS_V2 : schemaTiktok === false ? PROP_COLUMNS_V3 : PROP_COLUMNS)
+      .select(schemaV3 === false ? PROP_COLUMNS_V2 : schemaTiktok === false ? PROP_COLUMNS_V3 : schemaGoogle === false ? PROP_COLUMNS_V4 : PROP_COLUMNS)
       .single();
     if (e2) throw friendlyError(e2);
     list = [mapProp(created as unknown as PropRow), ...list];
@@ -149,6 +164,21 @@ const mapOps = (o: StayOps): StayOps => ({
   note: o.note ?? '',
 });
 const mapCash = (m: CashMovement): CashMovement => ({ ...m, amount_usd: num(m.amount_usd), note: m.note ?? '' });
+
+const REVIEW_COLUMNS =
+  'id, property_id, author_name, nights, cleanliness, beds, ac, wifi, communication, kitchen_ok, kitchen_missing, recommend, liked, improve, permission, status, reply, created_at';
+const nOrNull = (v: unknown) => (v == null ? null : Number(v));
+const mapReview = (r: Record<string, unknown>): Review =>
+  ({
+    ...r,
+    nights: nOrNull(r.nights),
+    cleanliness: nOrNull(r.cleanliness),
+    beds: nOrNull(r.beds),
+    ac: nOrNull(r.ac),
+    wifi: nOrNull(r.wifi),
+    communication: nOrNull(r.communication),
+    recommend: nOrNull(r.recommend),
+  }) as Review;
 
 /** Quién entró: su nombre guardado, el que le dieron en Accesos o el de su correo. */
 async function loadMe(sb: SupabaseClient): Promise<Me | undefined> {
@@ -191,12 +221,13 @@ export const supabaseStore: DataStore = {
     const owner = await ownerId(sb);
     const properties = await loadProperties(sb);
     const own = properties.find((p) => p.kind === 'propio') ?? properties[0];
-    const [profileRes, { data: rows, error: re }, ops, team, me] = await Promise.all([
+    const [profileRes, { data: rows, error: re }, ops, team, me, reviews] = await Promise.all([
       sb.from('profiles').select('full_name, cedula, admin_whatsapp, staff_name, cash_alert_usd, deposit_usd').eq('id', owner).maybeSingle(),
       sb.from('reservations').select(RES_COLUMNS).order('check_in'),
       loadOps(sb),
       sb.rpc('my_team'),
       loadMe(sb),
+      sb.from('reviews').select(REVIEW_COLUMNS).order('created_at', { ascending: false }),
     ]);
     let profile = profileRes.data as Record<string, unknown> | null;
     if (missingSchema(profileRes.error)) {
@@ -224,6 +255,7 @@ export const supabaseStore: DataStore = {
       cash: ops.cash,
       team: team.error ? [] : ((team.data ?? []) as TeamMember[]).map((m) => ({ ...m, role: m.role === 'admin' ? 'admin' : 'staff' })),
       migrationPending: ops.pending || schemaV3 === false,
+      reviews: reviews.error ? [] : (reviews.data ?? []).map(mapReview),
     };
   },
 
@@ -339,14 +371,17 @@ export const supabaseStore: DataStore = {
 
   async loadPublic(from, to): Promise<PublicData> {
     const sb = getSupabase();
-    const [{ data: listings, error: e1 }, { data: busy, error: e2 }] = await Promise.all([
+    const [{ data: listings, error: e1 }, { data: busy, error: e2 }, reviews] = await Promise.all([
       sb.rpc('public_listings'),
       sb.rpc('public_busy', { p_from: from, p_to: to }),
+      sb.rpc('public_reviews'),
     ]);
     if (e1 || e2) throw new Error('No se pudo cargar la disponibilidad. Inténtalo de nuevo.');
     return {
-      listings: ((listings ?? []) as PublicListing[]).map((l) => ({ ...l, nightly_usd: l.nightly_usd == null ? null : Number(l.nightly_usd), tiktok_url: l.tiktok_url ?? '' })),
+      listings: ((listings ?? []) as PublicListing[]).map((l) => ({ ...l, nightly_usd: l.nightly_usd == null ? null : Number(l.nightly_usd), tiktok_url: l.tiktok_url ?? '', google_review_url: l.google_review_url ?? '' })),
       busy: (busy ?? []) as BusyRange[],
+      // sin la migración de reseñas, simplemente no hay reseñas
+      reviews: reviews.error ? [] : ((reviews.data ?? []) as Record<string, unknown>[]).map((r) => ({ ...(mapReview(r) as unknown as PublicReview), rating: nOrNull(r.rating) })),
     };
   },
 
@@ -438,5 +473,39 @@ export const supabaseStore: DataStore = {
       ops: ops.ops,
       cash: ops.cash,
     };
+  },
+
+  async submitReview(propertyId, input) {
+    const clean = sanitizeReview(input);
+    const { error } = await getSupabase().rpc('submit_review', { p_property: propertyId, p_data: clean });
+    if (error) {
+      if (['22023', '54000', '23505'].includes(error.code ?? '')) throw new Error(error.message);
+      if (error.code === 'PGRST202') throw new Error('Por ahora no se pueden recibir opiniones. Escríbenos por WhatsApp.');
+      throw new Error('No se pudo enviar. Revisa tu conexión e inténtalo de nuevo.');
+    }
+  },
+
+  async moderateReview(id, patch) {
+    const fields: { status?: string; reply?: string } = {};
+    if (patch.status) fields.status = patch.status;
+    if (patch.reply != null) fields.reply = cleanText(patch.reply, 500);
+    const { error } = await getSupabase().from('reviews').update(fields).eq('id', id);
+    if (error) {
+      if (error.code === '23514') throw new Error('El huésped no dio permiso para publicarla.');
+      throw friendlyError(error);
+    }
+  },
+
+  async importReview(propertyId, input, createdAt) {
+    const { error } = await getSupabase().rpc('import_review', { p_property: propertyId, p_data: input, p_created_at: createdAt });
+    if (error) {
+      if (error.code === 'PGRST202') throw new Error('Falta ejecutar en Supabase la migración 20261016000000_resenas.sql.');
+      throw friendlyError(error);
+    }
+  },
+
+  async deleteReview(id) {
+    const { error } = await getSupabase().from('reviews').delete().eq('id', id);
+    if (error) throw friendlyError(error);
   },
 };

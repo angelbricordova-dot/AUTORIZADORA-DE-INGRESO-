@@ -201,6 +201,39 @@ select set_config('request.jwt.claim.sub','', false);
 select pg_temp.check((select tiktok_url = 'https://www.tiktok.com/@tudia' from public.public_listings() where kind = 'propio'), 'público ve el TikTok propio');
 select pg_temp.check((select tiktok_url = '' from public.public_listings() where kind = 'aliado'), 'el aliado no expone su TikTok');
 
+-- ===== Encuesta y reseñas (v6)
+reset role;
+set role anon;
+select set_config('request.jwt.claim.sub','', false);
+select public.submit_review('aaaaaaaa-0000-0000-0000-000000000001', '{"author_name":"María  Gómez","nights":2,"cleanliness":5,"beds":4,"ac":5,"wifi":5,"communication":5,"kitchen_ok":true,"recommend":10,"liked":"La piscina y lo atenta que fue Zuleika.","improve":"Más toallas de playa","permission":"si"}');
+select public.submit_review('aaaaaaaa-0000-0000-0000-000000000001', '{"nights":1,"cleanliness":2,"kitchen_ok":false,"kitchen_missing":"Una olla grande","liked":"El sitio","improve":"No había agua caliente el segundo día","permission":"no"}');
+select pg_temp.expect_error($q$select public.submit_review('aaaaaaaa-0000-0000-0000-000000000001', '{"liked":"Todo","permission":"si","author_name":"Ana"}')$q$, 'falta lo que mejorarían (obligatorio)');
+select pg_temp.expect_error($q$select public.submit_review('aaaaaaaa-0000-0000-0000-000000000001', '{"improve":"Visita https://estafa.example"}')$q$, 'encuesta con enlaces');
+select pg_temp.expect_error($q$select public.submit_review('aaaaaaaa-0000-0000-0000-000000000001', '{"improve":"Nada","cleanliness":9}')$q$, 'nota fuera de rango');
+select pg_temp.expect_error($q$select public.submit_review('aaaaaaaa-0000-0000-0000-000000000001', '{"improve":"Nada","liked":"Todo","permission":"si"}')$q$, 'con permiso hace falta el nombre');
+select pg_temp.expect_error($q$select public.submit_review('aaaaaaaa-0000-0000-0000-000000000003', '{"improve":"Nada"}')$q$, 'encuesta a apartamento no publicado');
+select pg_temp.expect_error($q$select public.submit_review('aaaaaaaa-0000-0000-0000-000000000001', '{"author_name":"María Gómez","liked":"La piscina y lo atenta que fue Zuleika.","improve":"Más toallas de playa","permission":"si"}')$q$, 'respuesta repetida');
+select pg_temp.expect_error($q$select * from public.reviews$q$, 'anon no lee la tabla de reseñas');
+select pg_temp.check((select count(*) = 0 from public.public_reviews()), 'las pendientes no se publican');
+reset role;
+set role authenticated;
+select set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111', false);
+select pg_temp.check((select count(*) = 2 from public.reviews where status = 'pendiente'), 'el panel ve todas las respuestas, también lo privado');
+select pg_temp.expect_error($q$update public.reviews set liked = 'texto cambiado' where author_name = 'María Gómez'$q$, 'el panel no edita lo que escribió el huésped');
+select pg_temp.expect_error($q$update public.reviews set status = 'publicada' where permission = 'no'$q$, 'sin permiso no se publica');
+update public.reviews set status = 'publicada', reply = '¡Gracias María!' where author_name = 'María Gómez';
+select public.import_review('aaaaaaaa-0000-0000-0000-000000000001', '{"nights":1,"cleanliness":5,"beds":5,"ac":5,"wifi":5,"communication":5,"kitchen_ok":true,"recommend":10,"liked":"La comodidad","improve":"Todo súper bien","permission":"si"}', '2026-09-17 12:36:15-04');
+update public.reviews set status = 'publicada' where liked = 'La comodidad';
+select set_config('request.jwt.claim.sub','22222222-2222-2222-2222-222222222222', false);
+select pg_temp.check((select count(*) = 0 from public.reviews), 'B no ve reseñas de A');
+select pg_temp.expect_error($q$select public.import_review('aaaaaaaa-0000-0000-0000-000000000001', '{"improve":"x"}')$q$, 'B no importa en el panel de A');
+reset role;
+set role anon;
+select set_config('request.jwt.claim.sub','', false);
+select pg_temp.check((select count(*) = 2 from public.public_reviews()), 'solo se publican las aprobadas con permiso');
+select pg_temp.check((select author = 'María G.' and reply = '¡Gracias María!' and rating = 4.8 from public.public_reviews() where author <> 'Huésped'), 'nombre corto, nota promedio y respuesta del panel');
+select pg_temp.check((select created_at::date = '2026-09-17' from public.public_reviews() where author = 'Huésped'), 'la importada sin nombre sale como Huésped con su fecha original');
+
 -- ===== Varias administradoras (v4)
 reset role;
 insert into auth.users values ('44444444-4444-4444-4444-444444444444','angelica@test');
