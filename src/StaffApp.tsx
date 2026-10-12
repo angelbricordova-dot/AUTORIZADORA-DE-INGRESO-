@@ -8,6 +8,7 @@ import { Icon } from './components/Icon';
 import { LogoMark } from './components/Logo';
 import { OpsBoard } from './components/Ops';
 import { ThemeToggle } from './components/ThemeToggle';
+import { setAppIdentity } from './install';
 
 export function StaffApp({ name }: { name: string }) {
   const today = todayISO();
@@ -23,10 +24,13 @@ export function StaffApp({ name }: { name: string }) {
     }
   }, [today]);
 
+  const who = name || data?.name || '';
   useEffect(() => {
-    document.title = `${name} · Tu Día en Tucacas`;
+    document.title = 'Trabajo · Tu Día en Tucacas';
+    // si instala desde aquí, el teléfono le pone el ícono de la llave
+    setAppIdentity('trabajo');
     reload();
-  }, [reload, name]);
+  }, [reload]);
 
   return (
     <div className="app staff-app">
@@ -37,7 +41,7 @@ export function StaffApp({ name }: { name: string }) {
               <LogoMark />
             </span>
             <span className="brand-text">
-              <span className="brand-name">Hola, {name}</span>
+              <span className="brand-name">{who ? `Hola, ${who}` : 'Hola'}</span>
               <span className="brand-sub">Tu Día en Tucacas</span>
             </span>
           </span>
@@ -64,7 +68,7 @@ export function StaffApp({ name }: { name: string }) {
           <OpsBoard
             view="staff"
             data={data}
-            settings={{ staff_name: name, cash_alert_usd: data.cash_alert_usd, deposit_usd: data.deposit_usd }}
+            settings={{ staff_name: who, cash_alert_usd: data.cash_alert_usd, deposit_usd: data.deposit_usd }}
             today={today}
             store={store}
             reload={reload}

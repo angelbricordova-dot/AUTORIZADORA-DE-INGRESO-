@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { useEffect } from 'react';
-import { ADMIN, navigate, useLocation } from './router';
+import { ADMIN, isWorkPath, navigate, useLocation } from './router';
 import { shouldOpenPanel } from './install';
 import { Site } from './site/Site';
 
@@ -11,10 +11,10 @@ export function App() {
   const { pathname } = useLocation();
   const toPanel = shouldOpenPanel(pathname);
   useEffect(() => {
-    if (toPanel) navigate(ADMIN, { replace: true });
+    if (toPanel) navigate(toPanel, { replace: true });
   }, [toPanel]);
   if (toPanel) return <div className="app" />;
-  if (pathname === ADMIN || pathname.startsWith(`${ADMIN}/`)) {
+  if (pathname === ADMIN || pathname.startsWith(`${ADMIN}/`) || isWorkPath(pathname)) {
     return (
       <Suspense fallback={<div className="app" />}>
         <AdminApp />

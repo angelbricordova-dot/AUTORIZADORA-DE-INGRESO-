@@ -135,3 +135,16 @@ test('accesos: dar acceso de administradora y de trabajo', async ({ page }) => {
   await expect(lista.getByText('zuleika@ejemplo.com')).toBeVisible();
   await expect(lista.getByText('Trabajo', { exact: true })).toBeVisible();
 });
+
+test('la app de trabajo de Zuleika tiene su propia puerta e ícono de llave', async ({ page, request }) => {
+  await page.goto('/trabajo');
+  await expect(page.getByText('Hola, Zuleika')).toBeVisible();
+  await expect(page.locator('.cash-card .big')).toHaveText('$248');
+  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/trabajo.webmanifest');
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', '/icon-trabajo-180.png');
+  const m = await (await request.get('/trabajo.webmanifest')).json();
+  expect(m).toMatchObject({ start_url: '/trabajo', scope: '/trabajo', short_name: 'Trabajo Tu Día' });
+  expect((await request.get('/icon-trabajo-180.png')).headers()['content-type']).toBe('image/png');
+  // no muestra nada del panel completo
+  await expect(page.getByRole('navigation', { name: 'Secciones' })).toHaveCount(0);
+});

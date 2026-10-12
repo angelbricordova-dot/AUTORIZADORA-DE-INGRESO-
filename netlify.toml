@@ -21,6 +21,17 @@
   to = "/admin/index.html"
   status = 200
 
+# App de trabajo de Zuleika (su propio ícono)
+[[redirects]]
+  from = "/trabajo"
+  to = "/trabajo/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/trabajo/*"
+  to = "/trabajo/index.html"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
@@ -47,6 +58,16 @@
 
 [[headers]]
   for = "/admin/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/trabajo"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/trabajo/*"
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"
 

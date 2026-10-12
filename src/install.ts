@@ -49,21 +49,32 @@ export function onInstallChange(fn: () => void): () => void {
   return () => listeners.delete(fn);
 }
 
-/** Recuerda que en esta app instalada se usa el panel. */
-export function rememberPanel() {
+/** Recuerda qué se usa en esta app instalada: el panel o la app de trabajo de Zuleika. */
+export function rememberPanel(kind: 'admin' | 'trabajo' = 'admin') {
   try {
-    localStorage.setItem(PANEL_FLAG, '1');
+    localStorage.setItem(PANEL_FLAG, kind);
   } catch {
     /* sin almacenamiento */
   }
 }
 
-/** Si la app instalada abrió en la página pública pero se usa para el panel, va directo al panel. */
-export function shouldOpenPanel(pathname: string): boolean {
-  if (pathname !== '/' || !isStandalone()) return false;
+/** Si la app instalada abrió en la página pública pero se usa para el panel, devuelve a dónde ir. */
+export function shouldOpenPanel(pathname: string): string | null {
+  if (pathname !== '/' || !isStandalone()) return null;
   try {
-    return localStorage.getItem(PANEL_FLAG) === '1';
+    const v = localStorage.getItem(PANEL_FLAG);
+    return v === 'trabajo' ? '/trabajo' : v === '1' || v === 'admin' ? '/admin' : null;
   } catch {
-    return false;
+    return null;
   }
+}
+
+/** Cambia el manifiesto y el ícono del teléfono según la app (panel o trabajo). */
+export function setAppIdentity(kind: 'admin' | 'trabajo') {
+  const manifest = kind === 'trabajo' ? '/trabajo.webmanifest' : '/panel.webmanifest';
+  const icon = kind === 'trabajo' ? '/icon-trabajo-180.png' : '/apple-touch-icon.png?v=2';
+  document.querySelector('link[rel="manifest"]')?.setAttribute('href', manifest);
+  document.querySelector('link[rel="apple-touch-icon"]')?.setAttribute('href', icon);
+  document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute('content', kind === 'trabajo' ? 'Trabajo Tu Día' : 'Panel Tu Día');
+  rememberPanel(kind);
 }

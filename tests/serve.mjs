@@ -32,7 +32,8 @@ createServer((req, res) => {
   let file = normalize(join(root, decodeURIComponent(url.pathname)));
   if (!file.startsWith(root) || !existsSync(file) || statSync(file).isDirectory()) {
     // igual que netlify.toml: el panel tiene su propia página
-    file = join(root, url.pathname === '/admin' || url.pathname.startsWith('/admin/') ? 'admin/index.html' : 'index.html');
+    const p = url.pathname;
+    file = join(root, p === '/admin' || p.startsWith('/admin/') ? 'admin/index.html' : p === '/trabajo' || p.startsWith('/trabajo/') ? 'trabajo/index.html' : 'index.html');
   }
   const headers = { 'Content-Type': TYPES[extname(file)] || 'application/octet-stream' };
   for (const r of rules) if (r.re.test(url.pathname)) Object.assign(headers, r.values);

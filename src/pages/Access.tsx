@@ -96,7 +96,9 @@ export function AccessPage() {
             En Supabase → <strong>Authentication → Users → Add user</strong>, crea el usuario con su correo y una contraseña (marca “Auto Confirm User”).
           </li>
           <li>Escribe aquí ese mismo correo, elige qué puede ver y toca “Dar acceso”.</li>
-          <li>Esa persona entra en esta misma dirección con su correo y contraseña.</li>
+          <li>
+            Una administradora entra en <strong>/admin</strong>. Zuleika entra en <strong>/trabajo</strong>: ahí la instala como app y le queda con el ícono de la llave.
+          </li>
         </ol>
         <form className="panel panel-pad stack" onSubmit={onSubmit}>
           <div className="field">

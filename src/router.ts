@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 
 export const ADMIN = '/admin';
+/** App de trabajo de Zuleika (misma app, otra puerta con su propio ícono). */
+export const WORK = '/trabajo';
+export const isWorkPath = (p: string) => p === WORK || p.startsWith(`${WORK}/`);
 const EVENT = 'app:navigate';
 
 export function navigate(to: string, opts: { replace?: boolean } = {}) {

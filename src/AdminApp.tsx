@@ -7,7 +7,7 @@ import { aiStatus } from './lib/ai';
 import { todayISO } from './lib/dates';
 import { pendingItems } from './lib/availability';
 import { Ctx, type AppCtx } from './context';
-import { href, useRoute } from './router';
+import { ADMIN, href, isWorkPath, navigate, useRoute } from './router';
 import { Icon, type IconName } from './components/Icon';
 import { LogoMark } from './components/Logo';
 import { ThemeToggle } from './components/ThemeToggle';
@@ -23,9 +23,11 @@ import { LoginPage } from './pages/Login';
 import { StaffPreviewPage, TeamPage } from './pages/Team';
 import { StaffApp } from './StaffApp';
 import { AccessPage } from './pages/Access';
-import { rememberPanel } from './install';
+import { setAppIdentity } from './install';
 
 export function AdminApp() {
+  // "/trabajo" es la puerta de Zuleika: misma app, otro ícono y otro nombre en el teléfono
+  const [work] = useState(() => isWorkPath(window.location.pathname));
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(!supabaseConfigured);
 
@@ -37,11 +39,10 @@ export function AdminApp() {
       document.head.appendChild(meta);
     }
     meta.setAttribute('content', 'noindex, nofollow');
-    document.title = 'Panel · Tu Día en Tucacas';
-    // al instalar el panel en el teléfono, que abra directo en el panel
-    document.querySelector('link[rel="manifest"]')?.setAttribute('href', '/panel.webmanifest');
-    rememberPanel();
-  }, []);
+    document.title = work ? 'Trabajo · Tu Día en Tucacas' : 'Panel · Tu Día en Tucacas';
+    // al instalar en el teléfono, que abra directo aquí (y con su propio ícono)
+    setAppIdentity(work ? 'trabajo' : 'admin');
+  }, [work]);
 
   useEffect(() => {
     if (!supabaseConfigured) return;
@@ -55,12 +56,12 @@ export function AdminApp() {
   }, []);
 
   if (!authReady) return <div className="app" />;
-  if (supabaseConfigured && !session) return <LoginPage />;
-  return <RoleGate key={session?.user.id ?? 'demo'} />;
+  if (supabaseConfigured && !session) return <LoginPage work={work} />;
+  return <RoleGate key={session?.user.id ?? 'demo'} work={work} />;
 }
 
 /** La dueña ve el panel completo; alguien del equipo (Zuleika) solo su panel de trabajo. */
-function RoleGate() {
+function RoleGate({ work }: { work: boolean }) {
   const [role, setRole] = useState<{ name: string } | null | undefined>(supabaseConfigured ? undefined : null);
   useEffect(() => {
     if (!supabaseConfigured) return;
@@ -69,8 +70,16 @@ function RoleGate() {
       .then(setRole)
       .catch(() => setRole(null));
   }, []);
-  if (role === undefined) return <div className="app" />;
-  return role ? <StaffApp name={role.name} /> : <Shell />;
+  // quien administra y entra por la puerta de trabajo, va a su panel completo
+  const toAdmin = supabaseConfigured && role === null && work;
+  useEffect(() => {
+    if (toAdmin) navigate(ADMIN, { replace: true });
+  }, [toAdmin]);
+  if (role === undefined || toAdmin) return <div className="app" />;
+  if (role) return <StaffApp name={role.name} />;
+  // en modo demo, "/trabajo" muestra la app de Zuleika con los datos de ejemplo
+  if (work) return <StaffApp name="" />;
+  return <Shell />;
 }
 
 const TABS: { to: string; label: string; icon: IconName; match: string[] }[] = [

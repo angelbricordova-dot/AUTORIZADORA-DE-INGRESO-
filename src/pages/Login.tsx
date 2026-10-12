@@ -16,7 +16,7 @@ export function loginError(err: { status?: number; code?: string; message?: stri
   return 'Correo o contraseña incorrectos.';
 }
 
-export function LoginPage() {
+export function LoginPage({ work = false }: { work?: boolean }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -38,10 +38,10 @@ export function LoginPage() {
 
   return (
     <div className="login">
-      <header className="login-hero">
+      <header className={`login-hero ${work ? 'login-work' : ''}`}>
         <LogoMark />
-        <h1 style={{ color: '#fff' }}>Tu Día en Tucacas</h1>
-        <p style={{ opacity: 0.85 }}>Panel de autorizaciones y estadías</p>
+        <h1 style={{ color: '#fff' }}>{work ? 'Trabajo' : 'Tu Día en Tucacas'}</h1>
+        <p style={{ opacity: 0.85 }}>{work ? 'Limpieza, llaves, garantías y caja · Tu Día en Tucacas' : 'Panel de autorizaciones y estadías'}</p>
       </header>
       <main className="login-card">
         <form className="stack" onSubmit={onSubmit}>

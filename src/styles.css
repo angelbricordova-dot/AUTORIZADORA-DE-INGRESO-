@@ -2307,3 +2307,8 @@ a[href^='x-apple-data-detectors:'] {
   text-decoration: none !important;
   font: inherit !important;
 }
+
+/* Puerta de trabajo (Zuleika): mismo diseño, atardecer en vez de mar */
+.login-hero.login-work {
+  background: linear-gradient(160deg, #f2a64a 0%, #d9653a 55%, #9c3d2b 100%);
+}
