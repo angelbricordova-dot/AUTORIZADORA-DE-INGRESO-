@@ -14,7 +14,7 @@
     "audit": "npm audit --omit=dev --audit-level=high",
     "predev": "node scripts/copy-ocr-assets.mjs",
     "prebuild": "node scripts/copy-ocr-assets.mjs",
-    "test:db": "bash tests/db/run.sh"
+    "test:db": "bash tests/db/run.sh && bash tests/db/backfill-test.sh"
   },
   "engines": {
     "node": ">=20"

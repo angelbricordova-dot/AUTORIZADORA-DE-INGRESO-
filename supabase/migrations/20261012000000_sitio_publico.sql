@@ -116,3 +116,19 @@ revoke all on function public.valid_photo_urls(text[]) from public;
 grant execute on function public.public_listings() to anon, authenticated;
 grant execute on function public.public_busy(date, date) to anon, authenticated;
 grant execute on function public.valid_photo_urls(text[]) to authenticated;
+
+-- ---------------------------------------------------------------------
+-- Completa el apartamento propio creado con la versión anterior
+-- (quedaba oculto y sin precio al agregar las columnas nuevas)
+-- ---------------------------------------------------------------------
+update public.properties
+set title = 'Tu Día en Tucacas · Apartamento N°' || unit,
+    summary = 'Hospedaje en el Conjunto Residencial Pescadores I, a minutos de la playa.',
+    capacity = 7,
+    nightly_usd = coalesce(nightly_usd, 90),
+    amenities = array['A minutos de la playa', 'Piscina', 'Áreas recreativas', 'WiFi', 'Seguridad', 'Servicio de agua'],
+    contact_whatsapp = '584242703482',
+    airbnb_url = 'https://www.airbnb.co.ve/rooms/1622130249785584357',
+    instagram_url = 'https://www.instagram.com/aribnb.tucacas/',
+    published = true
+where kind = 'propio' and title = '';
