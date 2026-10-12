@@ -10,6 +10,17 @@
   node_bundler = "esbuild"
 
 # SPA: cualquier ruta sirve la app
+# El panel se sirve con su propia página (manifiesto para instalarlo como app)
+[[redirects]]
+  from = "/admin"
+  to = "/admin/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin/*"
+  to = "/admin/index.html"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

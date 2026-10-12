@@ -2296,3 +2296,6 @@ button.list-item {
   outline: 3px solid color-mix(in srgb, var(--brand) 45%, transparent);
   outline-offset: 2px;
 }
+.install-title {
+  font-size: 1.0625rem;
+}

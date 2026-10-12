@@ -106,17 +106,41 @@ test('servicios: se ven tres y el resto se despliega', async ({ page }) => {
   await expect(servicios.getByRole('button', { name: 'Ver menos' })).toHaveAttribute('aria-expanded', 'true');
 });
 
-test('el pie tiene WhatsApp, Instagram y Airbnb, y no muestra el acceso al panel', async ({ page }) => {
+test('el pie tiene WhatsApp, Instagram, Airbnb y el acceso al panel', async ({ page }) => {
   for (const path of ['/', '/apartamento/30']) {
     await page.goto(path);
     const pie = page.locator('footer');
     await expect(pie.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute('href', /wa\.me\/584242703482/);
     await expect(pie.getByRole('link', { name: 'Instagram' })).toBeVisible();
     await expect(pie.getByRole('link', { name: 'Ver en Airbnb' })).toBeVisible();
-    await expect(page.locator('a[href^="/admin"]')).toHaveCount(0);
   }
-  await page.goto('/admin');
+  await page.locator('footer').getByRole('link', { name: 'Acceso administración' }).click();
+  await expect(page).toHaveURL(/\/admin$/);
   await expect(page.getByRole('heading', { name: /^Hola, Oniris/ })).toBeVisible();
+});
+
+test('el panel se instala como app propia: su manifiesto abre en /admin', async ({ page, request }) => {
+  await page.goto('/admin/reservas');
+  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/panel.webmanifest');
+  await expect(page.locator('meta[name="apple-mobile-web-app-title"]')).toHaveAttribute('content', 'Panel Tu Día');
+  const panel = await (await request.get('/panel.webmanifest')).json();
+  expect(panel).toMatchObject({ start_url: '/admin', scope: '/admin', display: 'standalone' });
+  const publico = await (await request.get('/manifest.webmanifest')).json();
+  expect(publico.start_url).toBe('/');
+});
+
+test('la app instalada que abre en la página pública salta al panel si se usa para el panel', async ({ page }) => {
+  await page.addInitScript(() => {
+    const real = window.matchMedia.bind(window);
+    window.matchMedia = (q: string) =>
+      q === '(display-mode: standalone)' ? ({ matches: true, media: q, addEventListener() {}, removeEventListener() {} } as unknown as MediaQueryList) : real(q);
+    localStorage.setItem('tudia-panel', '1');
+  });
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page.getByText('Estás usando el panel como aplicación')).toHaveCount(0);
+  await page.goto('/admin/mas');
+  await expect(page.getByText('Estás usando el panel como aplicación')).toBeVisible();
 });
 
 test('modo noche: se cambia con el botón y se recuerda', async ({ page }) => {

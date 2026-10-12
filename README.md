@@ -5,7 +5,8 @@ Página web del apartamento **N°30** del Conjunto Residencial **Pescadores I** 
 - **`/` — inicio público** (pensado para el teléfono): presenta la marca, busca fechas en **todos** los apartamentos a la vez, muestra el N°30 destacado y los aliados, cómo reservar, Tucacas y contacto por WhatsApp.
 - **`/apartamento/30`, `/apartamento/12`… — una página por apartamento**: fotos, precio, servicios, calendario con las noches libres y ocupadas, y botón para **reservar por WhatsApp** con las fechas y personas ya escritas. Si esas fechas están ocupadas, muestra **otros apartamentos del conjunto libres en esas fechas** para no perder al cliente.
 - **Modo día y modo noche** en todo el sitio y el panel (sigue al teléfono; el botón sol/luna lo cambia con una transición circular y lo recuerda).
-- **`/admin` — panel** (con login; no hay ningún enlace visible desde la página pública): autorizaciones de ingreso, calendario, estadías, pagos, apartamentos aliados con su comisión y el panel de **Zuleika**.
+- **`/admin` — panel** (con login; se entra desde "Acceso administración" al pie de la página o directo en `/admin`). Se puede **instalar como aplicación** (Más → Instalar el panel como aplicación): el ícono abre directo en el panel, no en la página pública.
+- **Panel:** autorizaciones de ingreso, calendario, estadías, pagos, apartamentos aliados con su comisión y el panel de **Zuleika**.
 - **Zuleika** entra en la misma dirección `/admin` con su propio usuario y ve **solo su panel de trabajo**: entradas y salidas, limpieza, llaves, lencería, garantías y el efectivo que guarda. Nunca ve cédulas, placas, notas ni lo que cobran los aliados.
 
 ## Qué hace el panel

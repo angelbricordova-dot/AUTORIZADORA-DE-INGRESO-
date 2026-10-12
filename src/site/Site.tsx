@@ -111,6 +111,9 @@ export function Site() {
           ) : null}
         </div>
         <p className="tiny muted">© {new Date().getFullYear()} Tu Día en Tucacas · Tucacas, Falcón, Venezuela</p>
+        <a className="admin-link tiny" href="/admin" target="_self">
+          <Icon name="key" /> Acceso administración
+        </a>
       </footer>
     </div>
   );

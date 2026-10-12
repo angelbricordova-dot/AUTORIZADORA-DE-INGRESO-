@@ -1,4 +1,5 @@
-import { useState, type CSSProperties, type FormEvent } from 'react';
+import { useEffect, useState, type CSSProperties, type FormEvent } from 'react';
+import { canPromptInstall, isIOS, isStandalone, onInstallChange, promptInstall } from '../install';
 import { useToast } from '../components/Toast';
 import { useApp } from '../context';
 import { resetDemo } from '../lib/store/demo';
@@ -21,6 +22,7 @@ export function MorePage() {
         <h1 className="grow">Más</h1>
       </div>
       <MyName />
+      <InstallApp />
       <div className="panel list stagger">
         {items.map((it, i) => (
           <a key={it.title} className="list-item" href={it.to} style={{ '--i': i } as CSSProperties}>
@@ -103,5 +105,51 @@ function MyName() {
         </span>
       </div>
     </form>
+  );
+}
+
+/** Instalar el panel como aplicación: botón en Android, instrucciones en iPhone. */
+function InstallApp() {
+  const [, force] = useState(0);
+  useEffect(() => onInstallChange(() => force((n) => n + 1)), []);
+  if (isStandalone()) {
+    return (
+      <div className="notice notice-ok install-card">
+        <Icon name="check" />
+        <span>Estás usando el panel como aplicación. Se abre directo aquí.</span>
+      </div>
+    );
+  }
+  return (
+    <section className="panel panel-pad stack install-card" aria-labelledby="h-instalar">
+      <div className="row">
+        <span className="lead-icon lead-brand">
+          <Icon name="download" />
+        </span>
+        <span className="grow">
+          <h2 id="h-instalar" className="install-title">
+            Instalar el panel como aplicación
+          </h2>
+          <span className="small muted">Queda un ícono en tu pantalla de inicio que abre directo aquí, sin pasar por la página pública.</span>
+        </span>
+      </div>
+      {canPromptInstall() ? (
+        <button className="btn btn-primary" type="button" onClick={() => promptInstall()}>
+          <Icon name="download" /> Instalar
+        </button>
+      ) : isIOS() ? (
+        <ol className="steps small">
+          <li>
+            Toca el botón <strong>Compartir</strong> (el cuadrito con la flecha hacia arriba).
+          </li>
+          <li>
+            Elige <strong>Agregar a pantalla de inicio</strong> y toca <strong>Agregar</strong>.
+          </li>
+          <li>Si ya tenías un ícono que abría la página pública, bórralo y agrega este.</li>
+        </ol>
+      ) : (
+        <p className="small muted">Abre el menú del navegador (los tres puntos) y elige “Instalar aplicación” o “Agregar a pantalla de inicio”.</p>
+      )}
+    </section>
   );
 }

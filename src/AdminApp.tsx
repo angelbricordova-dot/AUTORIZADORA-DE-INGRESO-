@@ -23,6 +23,7 @@ import { LoginPage } from './pages/Login';
 import { StaffPreviewPage, TeamPage } from './pages/Team';
 import { StaffApp } from './StaffApp';
 import { AccessPage } from './pages/Access';
+import { rememberPanel } from './install';
 
 export function AdminApp() {
   const [session, setSession] = useState<Session | null>(null);
@@ -39,6 +40,7 @@ export function AdminApp() {
     document.title = 'Panel · Tu Día en Tucacas';
     // al instalar el panel en el teléfono, que abra directo en el panel
     document.querySelector('link[rel="manifest"]')?.setAttribute('href', '/panel.webmanifest');
+    rememberPanel();
   }, []);
 
   useEffect(() => {

@@ -30,7 +30,10 @@ createServer((req, res) => {
     return res.end('{"enabled":false}');
   }
   let file = normalize(join(root, decodeURIComponent(url.pathname)));
-  if (!file.startsWith(root) || !existsSync(file) || statSync(file).isDirectory()) file = join(root, 'index.html');
+  if (!file.startsWith(root) || !existsSync(file) || statSync(file).isDirectory()) {
+    // igual que netlify.toml: el panel tiene su propia página
+    file = join(root, url.pathname === '/admin' || url.pathname.startsWith('/admin/') ? 'admin/index.html' : 'index.html');
+  }
   const headers = { 'Content-Type': TYPES[extname(file)] || 'application/octet-stream' };
   for (const r of rules) if (r.re.test(url.pathname)) Object.assign(headers, r.values);
   // en local no hay HTTPS: se omite solo esta directiva
