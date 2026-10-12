@@ -161,3 +161,47 @@ test('una dirección que no existe muestra cómo volver', async ({ page }) => {
   await page.goto('/apartamento/999');
   await expect(page.getByRole('heading', { name: 'No encontramos esa página' })).toBeVisible();
 });
+
+test('el N°30 va siempre primero, también al buscar fechas en que está ocupado', async ({ page }) => {
+  await page.goto('/');
+  const primera = page.locator('#h-aptos ~ .listing-grid > article').first();
+  await expect(primera).toContainText('Apartamento N°30');
+  await expect(primera.getByText('Nuestro apartamento')).toBeVisible();
+  // la etiqueta va abajo a la izquierda de la foto
+  const [foto, etiqueta] = await Promise.all([primera.locator('.featured-media').boundingBox(), primera.locator('.featured-badge').boundingBox()]);
+  expect(etiqueta!.y).toBeGreaterThan(foto!.y + foto!.height / 2);
+  await page.getByRole('button', { name: /Entrada/ }).click();
+  await pickDay(page, iso(3));
+  await pickDay(page, iso(5));
+  await page.getByRole('dialog', { name: 'Elegir fechas' }).getByRole('button', { name: /Ver lo libre/ }).click();
+  await expect(primera).toContainText('Apartamento N°30');
+  await expect(primera.getByText('Ocupado en tus fechas')).toBeVisible();
+});
+
+test('la barra de reservar queda fija abajo de la pantalla y no tapa "Dónde queda"', async ({ page }) => {
+  await page.goto('/apartamento/30');
+  await page.waitForTimeout(900);
+  await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }));
+  await page.waitForTimeout(300);
+  const barra = await page.locator('.book-bar').boundingBox();
+  const alto = page.viewportSize()!.height;
+  expect(Math.abs(barra!.y + barra!.height - alto)).toBeLessThanOrEqual(1.5);
+  // al final de la página, el pie queda completo por encima de la barra
+  const pie = await page.locator('footer').boundingBox();
+  expect(pie!.y + pie!.height).toBeLessThanOrEqual(barra!.y + 1);
+});
+
+test('TikTok: se carga en el panel y aparece al pie de la página', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('footer').getByRole('link', { name: 'TikTok' })).toHaveCount(0);
+  await page.goto('/admin/apartamento/demo-30');
+  await page.getByText('Contacto y redes').click();
+  await page.getByLabel('Enlace de TikTok').fill('https://evil.example/x');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(page.getByText('El enlace de TikTok no es válido', { exact: false })).toBeVisible();
+  await page.getByLabel('Enlace de TikTok').fill('https://www.tiktok.com/@tudiaentucacas');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(page.getByText('Apartamento guardado')).toBeVisible();
+  await page.goto('/');
+  await expect(page.locator('footer').getByRole('link', { name: 'TikTok' })).toHaveAttribute('href', 'https://www.tiktok.com/@tudiaentucacas');
+});

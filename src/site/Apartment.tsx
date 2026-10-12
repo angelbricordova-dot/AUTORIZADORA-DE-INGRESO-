@@ -1,5 +1,6 @@
 // Página de un apartamento: fotos, disponibilidad, reservar por WhatsApp y, si no se puede, alternativas.
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { PublicData, PublicListing } from '../lib/types';
 import { formatDayMonth, isValidISO, todayISO } from '../lib/dates';
 import { formatUSD } from '../lib/money';
@@ -79,7 +80,17 @@ export function ApartmentPage({ l, data, phone, query }: { l: PublicListing; dat
           </div>
 
           {complete ? (
-            <ResultCard own={l} from={range.from!} to={range.to!} guests={guests} free={free} tooMany={tooMany} phone={phone} kids={kidsShown} onKids={setKids} />
+            <ResultCard
+              own={l}
+              from={range.from!}
+              to={range.to!}
+              guests={guests}
+              free={free}
+              tooMany={tooMany}
+              phone={phone}
+              kids={kidsShown}
+              onKids={setKids}
+            />
           ) : (
             <p className="hint">Elige la fecha de salida para ver el precio.</p>
           )}
@@ -104,7 +115,12 @@ export function ApartmentPage({ l, data, phone, query }: { l: PublicListing; dat
               <div className="panel panel-pad stack">
                 <p>Prueba con otras fechas o escríbenos: a veces se libera algo que no aparece aquí.</p>
                 {phone ? (
-                  <a className="btn btn-whatsapp" href={whatsappUrl(phone, bookingMessage(l, range.from!, range.to!, guests))} target="_blank" rel="noopener noreferrer">
+                  <a
+                    className="btn btn-whatsapp"
+                    href={whatsappUrl(phone, bookingMessage(l, range.from!, range.to!, guests))}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     <Icon name="send" /> Preguntar por WhatsApp
                   </a>
                 ) : null}
@@ -184,32 +200,46 @@ export function ApartmentPage({ l, data, phone, query }: { l: PublicListing; dat
         </section>
       </main>
 
-      {viewer != null ? <Lightbox photos={l.photos} start={viewer} title={name} onClose={() => setViewer(null)} /> : null}
+      {viewer != null ? createPortal(<Lightbox photos={l.photos} start={viewer} title={name} onClose={() => setViewer(null)} />, document.body) : null}
 
-      <div className="book-bar">
-        <div className="book-bar-inner">
-          <span>
-            <span className="num price">{l.nightly_usd != null ? formatUSD(l.nightly_usd) : '—'}</span>
-            <span className="small muted"> / noche</span>
-            <span className="tiny muted" style={{ display: 'block' }}>
-              {complete ? `${formatDayMonth(range.from!)} → ${formatDayMonth(range.to!)}` : `hasta ${l.capacity} personas`}
+      {/* La barra fija va en <body>: si quedara dentro de un elemento animado, el navegador la pegaría a ese elemento y no a la pantalla */}
+      {createPortal(
+        <div className="book-bar">
+          <div className="book-bar-inner">
+            <span>
+              <span className="num price">{l.nightly_usd != null ? formatUSD(l.nightly_usd) : '—'}</span>
+              <span className="small muted"> / noche</span>
+              <span className="tiny muted" style={{ display: 'block' }}>
+                {complete ? `${formatDayMonth(range.from!)} → ${formatDayMonth(range.to!)}` : `hasta ${l.capacity} personas`}
+              </span>
             </span>
-          </span>
-          {complete && free && !tooMany && phone ? (
-            <a className="btn btn-whatsapp" href={whatsappUrl(phone, bookingMessage(l, range.from!, range.to!, guests))} target="_blank" rel="noopener noreferrer">
-              Reservar
-            </a>
-          ) : complete && free && tooMany && phone ? (
-            <a className="btn btn-whatsapp" href={whatsappUrl(phone, exceptionMessage(l, range.from!, range.to!, guests, kidsShown))} target="_blank" rel="noopener noreferrer">
-              Consultar
-            </a>
-          ) : (
-            <a className="btn btn-primary" href="#disponibilidad">
-              Ver fechas
-            </a>
-          )}
-        </div>
-      </div>
+            {complete && free && !tooMany && phone ? (
+              <a
+                className="btn btn-whatsapp"
+                href={whatsappUrl(phone, bookingMessage(l, range.from!, range.to!, guests))}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Reservar
+              </a>
+            ) : complete && free && tooMany && phone ? (
+              <a
+                className="btn btn-whatsapp"
+                href={whatsappUrl(phone, exceptionMessage(l, range.from!, range.to!, guests, kidsShown))}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Consultar
+              </a>
+            ) : (
+              <a className="btn btn-primary" href="#disponibilidad">
+                Ver fechas
+              </a>
+            )}
+          </div>
+        </div>,
+        document.body,
+      )}
     </>
   );
 }

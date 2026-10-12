@@ -37,6 +37,7 @@ function seed(): AppData {
     contact_whatsapp: '',
     airbnb_url: '',
     instagram_url: '',
+    tiktok_url: '',
   });
   const mk = (p: Partial<Reservation> & Pick<Reservation, 'id' | 'check_in' | 'check_out' | 'contact_name' | 'channel'>): Reservation => ({
     property_id: 'demo-30',
@@ -274,7 +275,7 @@ export const demoStore: DataStore = {
         .map((p) => ({
           id: p.id, kind: p.kind, title: p.title || p.name, unit: p.unit, conjunto: p.conjunto, summary: p.summary, description: p.description,
           capacity: p.capacity, bedrooms: p.bedrooms, beds: p.beds, bathrooms: p.bathrooms, nightly_usd: p.nightly_usd, promo: p.promo, amenities: p.amenities, photos: p.photos,
-          contact_whatsapp: p.kind === 'propio' ? p.contact_whatsapp : '', airbnb_url: p.kind === 'propio' ? p.airbnb_url : '', instagram_url: p.kind === 'propio' ? p.instagram_url : '',
+          contact_whatsapp: p.kind === 'propio' ? p.contact_whatsapp : '', airbnb_url: p.kind === 'propio' ? p.airbnb_url : '', instagram_url: p.kind === 'propio' ? p.instagram_url : '', tiktok_url: p.kind === 'propio' ? p.tiktok_url : '',
         })),
       busy: d.reservations
         .filter((r) => ids.has(r.property_id) && r.status === 'confirmada' && r.check_out > from && r.check_in < to)

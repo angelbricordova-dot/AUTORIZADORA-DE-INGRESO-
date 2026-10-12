@@ -139,6 +139,7 @@ export const OWN_DEFAULTS: Omit<Property, 'id'> = {
   contact_whatsapp: '584242703482',
   airbnb_url: 'https://www.airbnb.co.ve/rooms/1622130249785584357',
   instagram_url: 'https://www.instagram.com/aribnb.tucacas/',
+  tiktok_url: '',
 };
 
 export function ownProperty(d: Pick<AppData, 'properties'>): Property | undefined {

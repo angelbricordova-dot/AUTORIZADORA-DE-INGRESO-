@@ -51,9 +51,11 @@ function mapRow(r: Row): Reservation {
 
 const PROP_COLUMNS_V2 =
   'id, kind, name, title, conjunto, unit, summary, description, capacity, bedrooms, nightly_usd, partner_cost_usd, promo, amenities, photos, published, sort, owner_name, owner_cedula, contact_whatsapp, airbnb_url, instagram_url';
-const PROP_COLUMNS = `${PROP_COLUMNS_V2}, beds, bathrooms`;
+const PROP_COLUMNS_V3 = `${PROP_COLUMNS_V2}, beds, bathrooms`;
+const PROP_COLUMNS = `${PROP_COLUMNS_V3}, tiktok_url`;
 
-type PropRow = Omit<Property, 'nightly_usd' | 'partner_cost_usd' | 'beds' | 'bathrooms'> & {
+type PropRow = Omit<Property, 'nightly_usd' | 'partner_cost_usd' | 'beds' | 'bathrooms' | 'tiktok_url'> & {
+  tiktok_url?: string | null;
   nightly_usd: number | string | null;
   partner_cost_usd: number | string | null;
   beds?: number | null;
@@ -70,18 +72,25 @@ function mapProp(r: PropRow): Property {
     photos: r.photos ?? [],
     beds: r.beds ?? null,
     bathrooms: r.bathrooms ?? null,
+    tiktok_url: r.tiktok_url ?? '',
   };
 }
 
 /** Columna o tabla que todavía no existe: falta ejecutar la última migración. */
 const missingSchema = (e: { code?: string } | null) => !!e && ['42703', '42P01', 'PGRST204', 'PGRST205', 'PGRST202'].includes(e.code ?? '');
 let schemaV3: boolean | null = null;
+/** ¿Ya existe la columna de TikTok (migración 20261015000000_tiktok.sql)? */
+let schemaTiktok: boolean | null = null;
 
 function propFields(p: PropertyInput) {
   const { id: _id, ...rest } = p;
   if (schemaV3 === false) {
-    const { beds: _b, bathrooms: _ba, ...v2 } = rest;
+    const { beds: _b, bathrooms: _ba, tiktok_url: _t, ...v2 } = rest;
     return v2;
+  }
+  if (schemaTiktok === false) {
+    const { tiktok_url: _t, ...v3 } = rest;
+    return v3;
   }
   return rest;
 }
@@ -89,17 +98,25 @@ function propFields(p: PropertyInput) {
 async function loadProperties(sb: SupabaseClient): Promise<Property[]> {
   const select = (cols: string) => sb.from('properties').select(cols).order('sort').order('created_at');
   let res = await select(PROP_COLUMNS);
-  if (missingSchema(res.error)) {
-    schemaV3 = false;
-    res = await select(PROP_COLUMNS_V2);
-  } else if (!res.error) schemaV3 = true;
+  if (!res.error) {
+    schemaV3 = true;
+    schemaTiktok = true;
+  } else if (missingSchema(res.error)) {
+    schemaTiktok = false;
+    res = await select(PROP_COLUMNS_V3);
+    if (!res.error) schemaV3 = true;
+    else if (missingSchema(res.error)) {
+      schemaV3 = false;
+      res = await select(PROP_COLUMNS_V2);
+    }
+  }
   if (res.error) throw friendlyError(res.error);
   let list = ((res.data ?? []) as unknown as PropRow[]).map(mapProp);
   if (!list.some((p) => p.kind === 'propio')) {
     const { data: created, error: e2 } = await sb
       .from('properties')
       .insert(propFields(sanitizeProperty(OWN_DEFAULTS)))
-      .select(schemaV3 === false ? PROP_COLUMNS_V2 : PROP_COLUMNS)
+      .select(schemaV3 === false ? PROP_COLUMNS_V2 : schemaTiktok === false ? PROP_COLUMNS_V3 : PROP_COLUMNS)
       .single();
     if (e2) throw friendlyError(e2);
     list = [mapProp(created as unknown as PropRow), ...list];
@@ -328,7 +345,7 @@ export const supabaseStore: DataStore = {
     ]);
     if (e1 || e2) throw new Error('No se pudo cargar la disponibilidad. Inténtalo de nuevo.');
     return {
-      listings: ((listings ?? []) as PublicListing[]).map((l) => ({ ...l, nightly_usd: l.nightly_usd == null ? null : Number(l.nightly_usd) })),
+      listings: ((listings ?? []) as PublicListing[]).map((l) => ({ ...l, nightly_usd: l.nightly_usd == null ? null : Number(l.nightly_usd), tiktok_url: l.tiktok_url ?? '' })),
       busy: (busy ?? []) as BusyRange[],
     };
   },

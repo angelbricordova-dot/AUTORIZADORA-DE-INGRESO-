@@ -104,6 +104,11 @@ export function Site() {
               Instagram
             </a>
           ) : null}
+          {own?.tiktok_url ? (
+            <a className="btn btn-soft btn-small" href={own.tiktok_url} target="_blank" rel="noopener noreferrer">
+              TikTok
+            </a>
+          ) : null}
           {own?.airbnb_url ? (
             <a className="btn btn-soft btn-small" href={own.airbnb_url} target="_blank" rel="noopener noreferrer">
               Ver en Airbnb

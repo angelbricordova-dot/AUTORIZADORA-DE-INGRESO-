@@ -83,11 +83,13 @@ export function sanitizeProperty(p: PropertyInput): PropertyInput {
     contact_whatsapp: (p.contact_whatsapp || '').replace(/\D/g, '').slice(0, 15),
     airbnb_url: cleanText(p.airbnb_url, 300),
     instagram_url: cleanText(p.instagram_url, 300),
+    tiktok_url: cleanText(p.tiktok_url ?? '', 300),
   };
   if (!out.unit) throw new Error('Escribe el número del apartamento.');
   if (!out.name) out.name = out.kind === 'propio' ? `Apartamento N°${out.unit}` : `Apto ${out.unit}`;
   if (out.airbnb_url && !/^https:\/\/(www\.)?airbnb\.[a-z.]+\//.test(out.airbnb_url)) throw new Error('El enlace de Airbnb no es válido.');
   if (out.instagram_url && !/^https:\/\/(www\.)?instagram\.com\//.test(out.instagram_url)) throw new Error('El enlace de Instagram no es válido.');
+  if (out.tiktok_url && !/^https:\/\/(www\.|vm\.)?tiktok\.com\//.test(out.tiktok_url)) throw new Error('El enlace de TikTok no es válido (debe empezar con https://www.tiktok.com/).');
   if (out.kind === 'aliado' && out.nightly_usd != null && out.partner_cost_usd != null && out.nightly_usd < out.partner_cost_usd)
     throw new Error('El precio público no puede ser menor a lo que cobra el dueño.');
   return out;

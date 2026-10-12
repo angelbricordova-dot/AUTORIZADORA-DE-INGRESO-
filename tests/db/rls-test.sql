@@ -188,6 +188,19 @@ delete from public.team_members;
 select set_config('request.jwt.claim.sub','33333333-3333-3333-3333-333333333333', false);
 select pg_temp.check(public.staff_owner() is null and (select count(*) = 0 from public.stay_ops), 'al quitarla del equipo pierde el acceso');
 
+-- ===== TikTok (v5)
+reset role;
+set role authenticated;
+select set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111', false);
+update public.properties set tiktok_url = 'https://www.tiktok.com/@tudia' where id = 'aaaaaaaa-0000-0000-0000-000000000001';
+select pg_temp.expect_error($q$update public.properties set tiktok_url = 'https://evil.com/tiktok' where id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 'enlace de TikTok falso');
+update public.properties set tiktok_url = 'https://www.tiktok.com/@aliado' where id = 'aaaaaaaa-0000-0000-0000-000000000002';
+reset role;
+set role anon;
+select set_config('request.jwt.claim.sub','', false);
+select pg_temp.check((select tiktok_url = 'https://www.tiktok.com/@tudia' from public.public_listings() where kind = 'propio'), 'público ve el TikTok propio');
+select pg_temp.check((select tiktok_url = '' from public.public_listings() where kind = 'aliado'), 'el aliado no expone su TikTok');
+
 -- ===== Varias administradoras (v4)
 reset role;
 insert into auth.users values ('44444444-4444-4444-4444-444444444444','angelica@test');

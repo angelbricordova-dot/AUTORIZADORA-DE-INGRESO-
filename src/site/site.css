@@ -712,7 +712,8 @@
 
 /* Cambio de página dentro del sitio */
 .page-swap {
-  animation: page-in 420ms var(--ease-out) both;
+  /* sin "fill": al terminar no deja transform, que atraparía a los elementos fijos */
+  animation: page-in 420ms var(--ease-out);
 }
 
 .site-top-actions {
@@ -1067,8 +1068,9 @@
 }
 .featured-badge {
   position: absolute;
-  top: 12px;
   left: 12px;
+  bottom: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
 }
 .featured-body {
   display: flex;
@@ -1408,4 +1410,13 @@
 }
 .admin-link:active {
   background: var(--surface-2);
+}
+
+/* Espacio al final para que la barra fija de reservar no tape el pie */
+.site-apto {
+  padding-bottom: calc(120px + env(safe-area-inset-bottom));
+}
+.site-lobby,
+.site-none {
+  padding-bottom: env(safe-area-inset-bottom);
 }

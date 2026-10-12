@@ -98,6 +98,7 @@ export interface Property {
   contact_whatsapp: string;
   airbnb_url: string;
   instagram_url: string;
+  tiktok_url: string;
 }
 
 export type PropertyInput = Omit<Property, 'id'> & { id?: string };
@@ -123,6 +124,7 @@ export type PublicListing = Pick<
   | 'contact_whatsapp'
   | 'airbnb_url'
   | 'instagram_url'
+  | 'tiktok_url'
 >;
 
 export interface BusyRange {

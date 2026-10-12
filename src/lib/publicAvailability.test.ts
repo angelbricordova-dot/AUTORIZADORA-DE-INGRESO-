@@ -4,7 +4,7 @@ import { alternatives, bookingMessage, exceptionMessage, isBusyNight, isRangeFre
 
 const L = (id: string, kind: 'propio' | 'aliado', capacity: number, price: number): PublicListing => ({
   id, kind, title: kind === 'propio' ? 'Tu Día en Tucacas · N°30' : `Apartamento ${id}`, unit: id, conjunto: 'JDC Pescadores I', summary: '', description: '',
-  capacity, bedrooms: null, beds: null, bathrooms: null, nightly_usd: price, promo: '', amenities: [], photos: [], contact_whatsapp: '', airbnb_url: '', instagram_url: '',
+  capacity, bedrooms: null, beds: null, bathrooms: null, nightly_usd: price, promo: '', amenities: [], photos: [], contact_whatsapp: '', airbnb_url: '', instagram_url: '', tiktok_url: '',
 });
 const busy: BusyRange[] = [
   { property_id: '30', check_in: '2026-10-17', check_out: '2026-10-19' },

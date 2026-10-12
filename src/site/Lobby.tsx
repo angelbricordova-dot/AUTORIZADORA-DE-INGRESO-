@@ -35,14 +35,14 @@ export function Lobby({ data, own, phone }: { data: PublicData | null; own?: Pub
     document.title = 'Tu Día en Tucacas · Alquiler por día en Tucacas';
   }, []);
 
+  // el N°30 va siempre primero y destacado; los demás, primero los libres en tus fechas
   const results = useMemo(() => {
-    const list = data?.listings ?? [];
+    const list = (data?.listings ?? []).filter((l) => l.id !== own?.id);
     if (!complete || !data) return list;
     const ok = (l: PublicListing) => l.capacity >= guests && isRangeFree(data.busy, l.id, range.from!, range.to!);
     return [...list].sort((a, b) => Number(ok(b)) - Number(ok(a)));
-  }, [data, complete, range, guests]);
-  const freeCount = complete && data ? results.filter((l) => l.capacity >= guests && isRangeFree(data.busy, l.id, range.from!, range.to!)).length : 0;
-  const partners = (data?.listings ?? []).filter((l) => l.id !== own?.id);
+  }, [data, complete, range, guests, own]);
+  const freeCount = complete && data ? (data?.listings ?? []).filter((l) => l.capacity >= guests && isRangeFree(data.busy, l.id, range.from!, range.to!)).length : 0;
 
   return (
     <>
@@ -126,8 +126,8 @@ export function Lobby({ data, own, phone }: { data: PublicData | null; own?: Pub
           <h2 id="h-aptos">{complete ? 'Apartamentos para tus fechas' : 'Nuestros apartamentos'}</h2>
           {data ? (
             <div className="listing-grid">
-              {own && !complete ? <Featured l={own} /> : null}
-              {(complete ? results : partners).map((l, i) => (
+              {own ? <Featured l={own} from={complete ? range.from : null} to={complete ? range.to : null} guests={guests} busy={data.busy} /> : null}
+              {results.map((l, i) => (
                 <ListingCard
                   key={l.id}
                   l={l}
@@ -201,19 +201,33 @@ export function Lobby({ data, own, phone }: { data: PublicData | null; own?: Pub
   );
 }
 
-function Featured({ l }: { l: PublicListing }) {
+function Featured({
+  l,
+  from,
+  to,
+  guests,
+  busy,
+}: {
+  l: PublicListing;
+  from: string | null;
+  to: string | null;
+  guests: number;
+  busy: PublicData['busy'];
+}) {
   const name = listingName(l);
+  const free = from && to ? l.capacity >= guests && isRangeFree(busy, l.id, from, to) : null;
   return (
     <article className="featured">
       <div className="featured-media">
         {l.photos[0] ? <img src={l.photos[0]} alt="" /> : <LogoMark className="listing-art" />}
+        {free != null ? <span className={`badge ${free ? 'badge-ok' : 'badge-bad'} listing-badge`}>{free ? 'Libre en tus fechas' : 'Ocupado en tus fechas'}</span> : null}
         <span className="badge badge-sun featured-badge">
           <Icon name="star" /> Nuestro apartamento
         </span>
       </div>
       <div className="featured-body">
         <h3>
-          <a className="stretched" href={aptPath(l)}>
+          <a className="stretched" href={aptPath(l, { from, to, guests })}>
             {name}
           </a>
         </h3>

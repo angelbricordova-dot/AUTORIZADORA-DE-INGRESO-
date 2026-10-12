@@ -92,6 +92,7 @@ const NEW_PARTNER: PropertyInput = {
   contact_whatsapp: '',
   airbnb_url: '',
   instagram_url: '',
+  tiktok_url: '',
 };
 
 export function PropertyForm({ id }: { id?: string }) {
@@ -383,6 +384,17 @@ export function PropertyForm({ id }: { id?: string }) {
             <div className="field">
               <label htmlFor="ig">Enlace de Instagram</label>
               <input id="ig" className="input" inputMode="url" value={f.instagram_url} onChange={(e) => set('instagram_url', e.target.value)} />
+            </div>
+            <div className="field">
+              <label htmlFor="tt">Enlace de TikTok</label>
+              <input
+                id="tt"
+                className="input"
+                inputMode="url"
+                placeholder="https://www.tiktok.com/@tu_cuenta"
+                value={f.tiktok_url ?? ''}
+                onChange={(e) => set('tiktok_url', e.target.value)}
+              />
             </div>
           </div>
         </details>

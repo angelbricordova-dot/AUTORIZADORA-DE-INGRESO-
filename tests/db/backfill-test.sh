@@ -31,3 +31,7 @@ F=$($PSQL -At -c "set role anon; select cardinality(photos) || '/' || bedrooms |
 $PSQL -f "$ROOT/supabase/migrations/20261014000000_varias_administradoras.sql"
 V=$($PSQL -At -c "set role authenticated; select set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111', false) is not null; select count(*) || '/' || (select count(*) from public.payments) from public.reservations;" | tail -1)
 [ "$V" = "1/1" ] && echo "LA DUEÑA CONSERVA SUS DATOS: OK" || { echo "FALLA dueña: $V"; exit 1; }
+# v5: TikTok; la página pública sigue funcionando
+$PSQL -f "$ROOT/supabase/migrations/20261015000000_tiktok.sql"
+T=$($PSQL -At -c "set role anon; select count(*) || '/' || coalesce(max(tiktok_url), 'x') from public.public_listings();")
+[ "$T" = "1/" ] && echo "TIKTOK SIN ROMPER LA PÁGINA: OK" || { echo "FALLA tiktok: $T"; exit 1; }

@@ -30,7 +30,8 @@ Página web del apartamento **N°30** del Conjunto Residencial **Pescadores I** 
 - Inicio con el logo que se dibuja solo, olas en movimiento, buscador de fechas, apartamento destacado, pasos para reservar y Tucacas.
 - Fotos reales del N°30 (portada deslizable, mosaico y fotos a pantalla completa), descripción, habitaciones, camas y baños.
 - "Lo que incluye" muestra 3 servicios y el resto se despliega.
-- Al pie: WhatsApp, Instagram y Airbnb.
+- Al pie: WhatsApp, Instagram, TikTok (se carga en Más → Apartamentos y catálogo → Tu apartamento → Contacto y redes) y Airbnb.
+- El N°30 aparece siempre primero y destacado, también al buscar fechas.
 - Calendario con noches libres y ocupadas, precio total y **reservar por WhatsApp**.
 - **Más de 7 personas**: primero ofrece **consultar una excepción por WhatsApp** (con cuántos son niños); debajo, otros apartamentos del conjunto para el grupo.
 
@@ -58,6 +59,7 @@ npm run dev
    3. `20261012000100_fotos_storage.sql` (fotos de los apartamentos)
    4. `20261013000000_equipo_pagos.sql` (pagos, Zuleika, garantías, caja y fotos reales del N°30)
    5. `20261014000000_varias_administradoras.sql` (Oniris, Angélica y tú en el mismo panel)
+   6. `20261015000000_tiktok.sql` (enlace de TikTok en la página)
 
    Si ya ejecutaste los anteriores, solo corre el que falta. Los pagos que ya tenías anotados se conservan como "Registrado antes del detalle de pagos".
 3. **Authentication → Sign In / Providers → Email:** desactiva **"Allow new users to sign up"** (nadie puede registrarse por su cuenta).
