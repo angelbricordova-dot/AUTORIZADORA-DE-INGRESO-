@@ -8,6 +8,7 @@ export function MorePage() {
   const { data, store, signOut } = useApp();
   const partners = data.properties.filter((p) => p.kind === 'aliado').length;
   const items: { to: string; icon: IconName; title: string; sub: string; external?: boolean }[] = [
+    { to: href('/zuleika'), icon: 'broom', title: data.settings.staff_name, sub: 'Limpieza, llaves, garantías y el efectivo que guarda' },
     { to: href('/apartamentos'), icon: 'building', title: 'Apartamentos y catálogo', sub: `N°${data.settings.unit} y ${partners} ${partners === 1 ? 'aliado' : 'aliados'} · precios, fotos y comisiones` },
     { to: href('/ajustes'), icon: 'idcard', title: 'Datos de la planilla', sub: 'Propietaria, cédula y WhatsApp de la administradora' },
     { to: '/', icon: 'eye', title: 'Ver la página pública', sub: 'Lo que ven los huéspedes' },

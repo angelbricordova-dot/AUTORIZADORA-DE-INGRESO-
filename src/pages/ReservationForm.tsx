@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { useApp } from '../context';
-import { CHANNELS, STAY_TYPES, type Channel, type ReservationInput, type ReservationStatus, type StayType } from '../lib/types';
+import { CHANNELS, PAY_METHODS, STAY_TYPES, payMethodLabel, type Channel, type PayMethod, type Receiver, type Reservation, type ReservationInput, type ReservationStatus, type StayType } from '../lib/types';
 import { addDays, formatDayMonth, isValidISO, nightsBetween } from '../lib/dates';
 import { balance, conflictsFor } from '../lib/availability';
 import { formatUSD, parseMoney } from '../lib/money';
@@ -9,6 +9,7 @@ import { Icon } from '../components/Icon';
 import { useToast } from '../components/Toast';
 import { AuthBadge } from '../components/StayRow';
 import { PropertyChips } from '../components/PropertyChips';
+import { PaymentSheet } from '../components/Ops';
 
 const STATUSES: { id: ReservationStatus; label: string }[] = [
   { id: 'confirmada', label: 'Confirmada' },
@@ -40,7 +41,12 @@ export function ReservationForm({ id, query }: { id?: string; query: URLSearchPa
     total: existing ? String(existing.total_usd || '') : '',
     paid: existing ? String(existing.paid_usd || '') : '',
     notes: existing?.notes ?? '',
+    // abono al registrar una estadía nueva
+    deposit: '',
+    method: 'pago_movil' as PayMethod,
+    who: 'owner' as Receiver,
   }));
+  const paymentsReady = !data.migrationPending;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((x) => ({ ...x, [k]: v }));
@@ -85,6 +91,10 @@ export function ReservationForm({ id, query }: { id?: string; query: URLSearchPa
     };
     try {
       const savedId = await store.saveReservation(input);
+      const abono = parseMoney(f.deposit);
+      if (!id && paymentsReady && abono > 0) {
+        await store.addPayment({ reservation_id: savedId, amount_usd: abono, method: f.method, received_by: f.who, paid_on: today, reference: '', note: 'Abono al reservar' });
+      }
       await reload();
       toast(id ? 'Estadía actualizada' : 'Estadía registrada');
       go(id ? `/reserva/${savedId}` : '/reservas');
@@ -108,7 +118,7 @@ export function ReservationForm({ id, query }: { id?: string; query: URLSearchPa
   }
 
   const total = parseMoney(f.total);
-  const paid = parseMoney(f.paid);
+  const paid = paymentsReady ? (existing?.paid_usd ?? 0) + (id ? 0 : parseMoney(f.deposit)) : parseMoney(f.paid);
 
   return (
     <form className="page" onSubmit={onSubmit} noValidate>
@@ -135,6 +145,8 @@ export function ReservationForm({ id, query }: { id?: string; query: URLSearchPa
           </span>
         </a>
       ) : null}
+
+      {existing && paymentsReady ? <PaymentsSection r={existing} total={total} /> : null}
 
       <section className="section" aria-labelledby="h-fechas">
         <h2 id="h-fechas">Fechas</h2>
@@ -223,11 +235,43 @@ export function ReservationForm({ id, query }: { id?: string; query: URLSearchPa
               <label htmlFor="total">Total (USD)</label>
               <input id="total" className="input" inputMode="decimal" placeholder="0" value={f.total} onChange={(e) => set('total', e.target.value)} />
             </div>
-            <div className="field">
-              <label htmlFor="paid">Pagado (USD)</label>
-              <input id="paid" className="input" inputMode="decimal" placeholder="0" value={f.paid} onChange={(e) => set('paid', e.target.value)} />
-            </div>
+            {!paymentsReady ? (
+              <div className="field">
+                <label htmlFor="paid">Pagado (USD)</label>
+                <input id="paid" className="input" inputMode="decimal" placeholder="0" value={f.paid} onChange={(e) => set('paid', e.target.value)} />
+              </div>
+            ) : !id ? (
+              <div className="field">
+                <label htmlFor="abono">Abono recibido</label>
+                <input id="abono" className="input" inputMode="decimal" placeholder="0" value={f.deposit} onChange={(e) => set('deposit', e.target.value)} />
+              </div>
+            ) : null}
           </div>
+          {paymentsReady && !id && parseMoney(f.deposit) > 0 ? (
+            <div className="field">
+              <span className="field-label" id="lbl-abono">
+                ¿Cómo pagó el abono?
+              </span>
+              <div className="segmented wrap" role="radiogroup" aria-labelledby="lbl-abono">
+                {PAY_METHODS.map((m) => (
+                  <label key={m.id} className="chip">
+                    <input type="radio" name="abono-method" checked={f.method === m.id} onChange={() => set('method', m.id)} />
+                    <span>{m.label}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="segmented" role="radiogroup" aria-label="¿Quién recibió el abono?">
+                <label className="chip">
+                  <input type="radio" name="abono-who" checked={f.who === 'owner'} onChange={() => set('who', 'owner')} />
+                  <span>Lo recibí yo</span>
+                </label>
+                <label className="chip">
+                  <input type="radio" name="abono-who" checked={f.who === 'staff'} onChange={() => set('who', 'staff')} />
+                  <span>Lo recibió {data.settings.staff_name}</span>
+                </label>
+              </div>
+            </div>
+          ) : null}
           {total > 0 ? (
             <p className="hint">
               {balance({ total_usd: total, paid_usd: paid }) > 0 ? `Falta por cobrar ${formatUSD(balance({ total_usd: total, paid_usd: paid }))}` : 'Pagado completo'}
@@ -272,5 +316,84 @@ export function ReservationForm({ id, query }: { id?: string; query: URLSearchPa
         ) : null}
       </div>
     </form>
+  );
+}
+
+function PaymentsSection({ r, total }: { r: Reservation; total: number }) {
+  const { data, store, reload, today } = useApp();
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const list = data.payments.filter((p) => p.reservation_id === r.id).sort((a, b) => a.paid_on.localeCompare(b.paid_on));
+  const due = Math.max(0, Math.round((total - r.paid_usd) * 100) / 100);
+  const staff = data.settings.staff_name;
+  return (
+    <section className="section" aria-labelledby="h-pagos">
+      <div className="section-head">
+        <h2 id="h-pagos">Pagos</h2>
+        {total > 0 ? <span className={`badge ${due > 0 ? 'badge-warn' : 'badge-ok'}`}>{due > 0 ? `Falta ${formatUSD(due)}` : 'Pagada'}</span> : null}
+      </div>
+      <div className="panel list">
+        {list.map((p) => (
+          <div key={p.id} className="list-item">
+            <span className={`lead-icon ${p.method === 'efectivo_usd' ? 'lead-ok' : 'lead-brand'}`}>
+              <Icon name={p.method === 'efectivo_usd' ? 'wallet' : 'money'} />
+            </span>
+            <span className="grow">
+              <span className="title">
+                {payMethodLabel(p.method)} · <span className="amount">{formatUSD(p.amount_usd)}</span>
+              </span>
+              <span className="sub">
+                {formatDayMonth(p.paid_on)} · {p.received_by === 'staff' ? `lo tiene ${staff}` : 'lo recibiste tú'}
+                {p.reference ? ` · ${p.reference}` : ''}
+              </span>
+            </span>
+            <button
+              className="icon-btn flat"
+              type="button"
+              aria-label={`Borrar el pago de ${formatUSD(p.amount_usd)}`}
+              onClick={async () => {
+                if (!window.confirm('¿Borrar este pago?')) return;
+                try {
+                  await store.deletePayment(p.id);
+                  await reload();
+                  toast('Pago borrado');
+                } catch (e) {
+                  toast((e as Error).message, 'bad');
+                }
+              }}
+            >
+              <Icon name="trash" />
+            </button>
+          </div>
+        ))}
+        <button className="list-item add-row" type="button" onClick={() => setOpen(true)}>
+          <span className="lead-icon lead-brand">
+            <Icon name="plus" />
+          </span>
+          <span className="grow">
+            <span className="title">Anotar un pago</span>
+            <span className="sub">Efectivo, pago móvil, transferencia, Zelle…</span>
+          </span>
+        </button>
+      </div>
+      <PaymentSheet
+        stay={open ? { id: r.id, contact_name: r.contact_name, total_usd: total, paid_usd: r.paid_usd } : null}
+        today={today}
+        receiver="choose"
+        staffName={staff}
+        onClose={() => setOpen(false)}
+        onSave={async (p) => {
+          try {
+            await store.addPayment(p);
+            await reload();
+            toast('Pago anotado');
+            return true;
+          } catch (e) {
+            toast((e as Error).message, 'bad');
+            return false;
+          }
+        }}
+      />
+    </section>
   );
 }

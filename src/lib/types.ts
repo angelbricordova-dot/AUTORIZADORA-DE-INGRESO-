@@ -58,6 +58,12 @@ export interface Settings {
   conjunto: string;
   unit: string;
   admin_whatsapp: string;
+  /** Quien limpia, entrega llaves y guarda el efectivo (Zuleika) */
+  staff_name: string;
+  /** Desde cuánto efectivo en manos del equipo conviene ir a retirarlo */
+  cash_alert_usd: number;
+  /** Garantía que se cobra al llegar */
+  deposit_usd: number;
 }
 
 export type PropertyKind = 'propio' | 'aliado';
@@ -75,6 +81,8 @@ export interface Property {
   description: string;
   capacity: number;
   bedrooms: number | null;
+  beds: number | null;
+  bathrooms: number | null;
   /** Precio público por noche */
   nightly_usd: number | null;
   /** Lo que cobra el dueño aliado por noche (privado). La diferencia es la comisión. */
@@ -97,7 +105,24 @@ export type PropertyInput = Omit<Property, 'id'> & { id?: string };
 /** Lo que el sitio público puede ver de un apartamento. */
 export type PublicListing = Pick<
   Property,
-  'id' | 'kind' | 'title' | 'unit' | 'conjunto' | 'summary' | 'description' | 'capacity' | 'bedrooms' | 'nightly_usd' | 'promo' | 'amenities' | 'photos' | 'contact_whatsapp' | 'airbnb_url' | 'instagram_url'
+  | 'id'
+  | 'kind'
+  | 'title'
+  | 'unit'
+  | 'conjunto'
+  | 'summary'
+  | 'description'
+  | 'capacity'
+  | 'bedrooms'
+  | 'beds'
+  | 'bathrooms'
+  | 'nightly_usd'
+  | 'promo'
+  | 'amenities'
+  | 'photos'
+  | 'contact_whatsapp'
+  | 'airbnb_url'
+  | 'instagram_url'
 >;
 
 export interface BusyRange {
@@ -111,7 +136,110 @@ export interface PublicData {
   busy: BusyRange[];
 }
 
-export const AMENITIES = ['Piscina', 'Áreas recreativas', 'WiFi', 'Seguridad', 'Servicio de agua', 'Aire acondicionado', 'Estacionamiento', 'Cocina equipada', 'Parrillera', 'A minutos de la playa'];
+export const AMENITIES = [
+  'Piscina',
+  'WiFi',
+  'Aire acondicionado',
+  'Tanque de agua propio',
+  'Cocina equipada',
+  'Estacionamiento',
+  'Televisión',
+  'Seguridad',
+  'Áreas recreativas',
+  'Cerca de los muelles',
+  'A minutos de la playa',
+  'Servicio de agua',
+  'Parrillera',
+];
+
+// ---------------------------------------------------------------------
+// Pagos, garantía, tareas y caja del equipo
+// ---------------------------------------------------------------------
+export type PayMethod = 'efectivo_usd' | 'pago_movil' | 'transferencia' | 'zelle' | 'binance' | 'efectivo_bs' | 'tarjeta' | 'otro';
+export const PAY_METHODS: { id: PayMethod; label: string }[] = [
+  { id: 'efectivo_usd', label: 'Efectivo $' },
+  { id: 'pago_movil', label: 'Pago móvil' },
+  { id: 'transferencia', label: 'Transferencia' },
+  { id: 'zelle', label: 'Zelle' },
+  { id: 'binance', label: 'Binance' },
+  { id: 'efectivo_bs', label: 'Efectivo Bs' },
+  { id: 'tarjeta', label: 'Punto de venta' },
+  { id: 'otro', label: 'Otro' },
+];
+export const payMethodLabel = (m: PayMethod) => PAY_METHODS.find((x) => x.id === m)?.label ?? 'Otro';
+
+/** Quién recibió el dinero: la dueña o alguien del equipo (Zuleika). */
+export type Receiver = 'owner' | 'staff';
+
+export interface Payment {
+  id: string;
+  reservation_id: string;
+  amount_usd: number;
+  method: PayMethod;
+  received_by: Receiver;
+  /** YYYY-MM-DD */
+  paid_on: string;
+  reference: string;
+  note: string;
+}
+export type PaymentInput = Omit<Payment, 'id'>;
+
+export interface StayOps {
+  reservation_id: string;
+  clean_before_at: string | null;
+  keys_at: string | null;
+  clean_after_at: string | null;
+  linens_at: string | null;
+  deposit_usd: number;
+  deposit_received_at: string | null;
+  deposit_returned_at: string | null;
+  deposit_returned_usd: number | null;
+  note: string;
+}
+export type StayOpsPatch = Partial<Omit<StayOps, 'reservation_id'>>;
+
+export type CashKind = 'retiro' | 'gasto' | 'ajuste';
+export interface CashMovement {
+  id: string;
+  kind: CashKind;
+  /** retiro y gasto son positivos y restan; ajuste suma o resta según el signo */
+  amount_usd: number;
+  happened_on: string;
+  note: string;
+}
+export type CashInput = Omit<CashMovement, 'id'>;
+
+export interface TeamMember {
+  member_id: string;
+  name: string;
+  email: string;
+}
+
+/** Lo que el equipo ve de una estadía: sin cédulas, placas ni notas. */
+export interface StaffStay {
+  id: string;
+  unit: string;
+  property_name: string;
+  check_in: string;
+  check_out: string;
+  status: ReservationStatus;
+  contact_name: string;
+  contact_phone: string;
+  people: number;
+  minors: number;
+  total_usd: number;
+  paid_usd: number;
+}
+
+export interface StaffData {
+  name: string;
+  deposit_usd: number;
+  cash_alert_usd: number;
+  stays: StaffStay[];
+  ops: StayOps[];
+  payments: Payment[];
+  cash: CashMovement[];
+}
 
 export function commission(p: Pick<Property, 'nightly_usd' | 'partner_cost_usd'>): number | null {
   if (p.nightly_usd == null || p.partner_cost_usd == null) return null;

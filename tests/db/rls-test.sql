@@ -118,5 +118,80 @@ select pg_temp.check((select bool_and(check_out > check_in) from public.public_b
 select pg_temp.expect_error($q$select * from public.public_busy('2026-01-01','2028-01-01')$q$, 'rango público demasiado largo');
 select pg_temp.expect_error($q$select partner_cost_usd from public.properties$q$, 'anon no lee costos de aliados');
 select pg_temp.expect_error($q$select public.valid_photo_urls(array['x'])$q$, 'anon no usa funciones internas');
+select pg_temp.check((select beds is null and bathrooms is null from public.public_listings() where kind='aliado'), 'público ve camas y baños');
+
+-- ===== Equipo, pagos, garantías y caja (v3)
+reset role;
+insert into auth.users values ('33333333-3333-3333-3333-333333333333','Zuleika@test');
+set role authenticated;
+select set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111', false);
+select pg_temp.expect_error($q$select public.add_team_member('nadie@test','X')$q$, 'agregar un correo que no existe');
+select pg_temp.expect_error($q$select public.add_team_member('oniris@test','Yo')$q$, 'agregarse a sí misma');
+select public.add_team_member('zuleika@TEST', 'Zuleika');
+select pg_temp.check((select count(*) = 1 from public.my_team() where email = 'Zuleika@test'), 'Oniris ve a Zuleika en su equipo');
+select pg_temp.expect_error($q$insert into public.team_members (member_id, owner_id, name) values ('22222222-2222-2222-2222-222222222222','11111111-1111-1111-1111-111111111111','x')$q$, 'insertar equipo sin la función');
+
+-- pagos: paid_usd es la suma y no se puede escribir a mano
+insert into public.payments (reservation_id, amount_usd, method) values ('bbbbbbbb-0000-0000-0000-000000000001', 100, 'pago_movil');
+select pg_temp.check((select paid_usd = 100 from public.reservations where id='bbbbbbbb-0000-0000-0000-000000000001'), 'paid_usd = suma de pagos');
+update public.reservations set paid_usd = 999 where id='bbbbbbbb-0000-0000-0000-000000000001';
+select pg_temp.check((select paid_usd = 100 from public.reservations where id='bbbbbbbb-0000-0000-0000-000000000001'), 'paid_usd no se escribe a mano');
+select pg_temp.expect_error($q$insert into public.payments (reservation_id, amount_usd, method) values ('bbbbbbbb-0000-0000-0000-000000000001', -5, 'zelle')$q$, 'pago negativo');
+select pg_temp.expect_error($q$insert into public.payments (reservation_id, amount_usd, method) values ('bbbbbbbb-0000-0000-0000-000000000001', 5, 'cripto-raro')$q$, 'método de pago inválido');
+insert into public.cash_movements (kind, amount_usd, note) values ('retiro', 50, 'Retiro de prueba');
+insert into public.reservations (property_id, contact_name, channel, check_in, check_out) values ('aaaaaaaa-0000-0000-0000-000000000002','Dueño del 12','otro','2026-10-25','2026-10-27');
+select pg_temp.expect_error($q$insert into public.cash_movements (kind, amount_usd) values ('retiro', -50)$q$, 'retiro negativo');
+
+-- ===== Zuleika (equipo)
+select set_config('request.jwt.claim.sub','33333333-3333-3333-3333-333333333333', false);
+select pg_temp.check(public.staff_owner() = '11111111-1111-1111-1111-111111111111', 'Zuleika trabaja para Oniris');
+select pg_temp.check((select count(*) = 0 from public.reservations), 'Zuleika no lee la tabla de estadías');
+select pg_temp.check((select count(*) = 0 from public.guests), 'Zuleika no ve cédulas');
+select pg_temp.check((select count(*) = 0 from public.vehicles), 'Zuleika no ve placas');
+select pg_temp.check((select count(*) = 0 from public.properties), 'Zuleika no ve costos de aliados');
+select pg_temp.check((select count(*) >= 2 from public.staff_board('2026-10-01','2026-11-30')), 'Zuleika ve la agenda');
+select pg_temp.check((select count(*) = 0 from public.staff_board('2026-10-01','2026-11-30') where unit = '12'), 'la agenda de Zuleika no incluye apartamentos aliados');
+select pg_temp.check((select deposit_usd = 100 and cash_alert_usd = 300 from public.staff_settings()), 'Zuleika ve la garantía y el aviso de su jefa');
+select pg_temp.check((select people = 3 and minors = 1 from public.staff_board('2026-10-01','2026-11-30') where id='bbbbbbbb-0000-0000-0000-000000000001'), 'agenda: cuántas personas, sin datos');
+select pg_temp.check((select count(*) = 0 from public.payments), 'Zuleika no ve pagos que recibió Oniris');
+-- cobra en efectivo: queda como recibido por ella aunque diga otra cosa
+insert into public.payments (reservation_id, amount_usd, method, received_by) values ('bbbbbbbb-0000-0000-0000-000000000001', 140, 'efectivo_usd', 'owner');
+select pg_temp.check((select received_by = 'staff' and owner_id = '11111111-1111-1111-1111-111111111111' from public.payments), 'cobro de Zuleika queda a su nombre y del dueño');
+select pg_temp.check((select paid_usd = 240 from public.staff_board('2026-10-01','2026-11-30') where id='bbbbbbbb-0000-0000-0000-000000000001'), 'el cobro de Zuleika suma al pagado');
+-- garantía y tareas
+insert into public.stay_ops (reservation_id, deposit_usd, deposit_received_at, keys_at) values ('bbbbbbbb-0000-0000-0000-000000000001', 100, now(), now());
+update public.stay_ops set deposit_returned_at = now(), deposit_returned_usd = 80, clean_after_at = now() where reservation_id = 'bbbbbbbb-0000-0000-0000-000000000001';
+select pg_temp.expect_error($q$update public.stay_ops set deposit_returned_usd = 150 where reservation_id = 'bbbbbbbb-0000-0000-0000-000000000001'$q$, 'devolver más de la garantía');
+insert into public.cash_movements (kind, amount_usd, note) values ('gasto', 12, 'Detergente');
+select pg_temp.expect_error($q$insert into public.cash_movements (kind, amount_usd) values ('retiro', 10)$q$, 'Zuleika no anota retiros');
+select pg_temp.check((select count(*) = 2 from public.cash_movements), 'Zuleika ve la caja');
+-- no puede crear nada propio ni tocar planillas
+select pg_temp.expect_error($q$insert into public.properties (name, unit) values ('Mío','99')$q$, 'equipo no crea apartamentos');
+select pg_temp.expect_error($q$insert into public.guests (reservation_id, position, full_name, cedula) values ('bbbbbbbb-0000-0000-0000-000000000001',6,'X','9.999.999')$q$, 'equipo no agrega personas');
+select pg_temp.expect_error($q$select public.save_authorization('bbbbbbbb-0000-0000-0000-000000000001', '[]', '[]')$q$, 'equipo no guarda planillas');
+select pg_temp.expect_error($q$select public.add_team_member('x@test','x')$q$, 'equipo no agrega gente');
+update public.reservations set total_usd = 1;  -- sin efecto
+delete from public.payments where method = 'pago_movil';  -- sin efecto: no es suyo
+
+-- ===== Otro dueño (B) no ve nada de esto
+select set_config('request.jwt.claim.sub','22222222-2222-2222-2222-222222222222', false);
+select pg_temp.check((select count(*) = 0 from public.payments) and (select count(*) = 0 from public.stay_ops) and (select count(*) = 0 from public.cash_movements), 'B no ve pagos, tareas ni caja de A');
+select pg_temp.check((select count(*) = 0 from public.staff_board('2026-10-01','2026-11-30')), 'B no ve la agenda de A');
+select pg_temp.expect_error($q$insert into public.stay_ops (reservation_id) values ('bbbbbbbb-0000-0000-0000-000000000001')$q$, 'B no crea tareas en estadía ajena');
+
+-- ===== Oniris ve todo
+select set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111', false);
+select pg_temp.check((select total_usd = 240 and paid_usd = 240 from public.reservations where id='bbbbbbbb-0000-0000-0000-000000000001'), 'Zuleika no cambió el total');
+select pg_temp.check((select count(*) = 2 from public.payments), 'Oniris ve todos los pagos');
+select pg_temp.check((select deposit_returned_usd = 80 from public.stay_ops), 'Oniris ve la garantía devuelta');
+delete from public.team_members;
+select set_config('request.jwt.claim.sub','33333333-3333-3333-3333-333333333333', false);
+select pg_temp.check(public.staff_owner() is null and (select count(*) = 0 from public.stay_ops), 'al quitarla del equipo pierde el acceso');
+
+reset role;
+set role anon;
+select set_config('request.jwt.claim.sub','', false);
+select pg_temp.expect_error($q$select * from public.payments$q$, 'anon lee pagos');
+select pg_temp.expect_error($q$select * from public.staff_board('2026-10-01','2026-10-02')$q$, 'anon lee la agenda');
 reset role;
 \echo 'TODAS LAS PRUEBAS DE BASE DE DATOS PASARON'

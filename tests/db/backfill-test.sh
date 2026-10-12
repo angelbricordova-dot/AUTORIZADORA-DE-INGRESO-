@@ -20,3 +20,10 @@ $PSQL -f "$ROOT/supabase/migrations/20261012000000_sitio_publico.sql"
 $PSQL -f "$ROOT/supabase/migrations/20261012000100_fotos_storage.sql"
 N=$($PSQL -At -c "set role anon; select count(*) from public.public_listings();")
 [ "$N" = "1" ] && echo "MIGRACIÓN SOBRE BASE EXISTENTE: OK (1 publicado)" || { echo "FALLA: $N publicados"; exit 1; }
+# v3: una estadía ya marcada como pagada debe conservar lo pagado como un pago "registrado antes"
+$PSQL -c "set role authenticated; select set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111', false); insert into public.reservations (property_id, contact_name, channel, check_in, check_out, total_usd, paid_usd) select id, 'Familia Vieja', 'airbnb', '2026-10-20', '2026-10-22', 200, 150 from public.properties limit 1;"
+$PSQL -f "$ROOT/supabase/migrations/20261013000000_equipo_pagos.sql"
+P=$($PSQL -At -c "select paid_usd || '/' || (select count(*) from public.payments) from public.reservations")
+[ "$P" = "150.00/1" ] && echo "PAGOS ANTERIORES CONSERVADOS: OK" || { echo "FALLA pagos: $P"; exit 1; }
+F=$($PSQL -At -c "set role anon; select cardinality(photos) || '/' || bedrooms || '/' || beds || '/' || bathrooms from public.public_listings();")
+[ "$F" = "12/2/5/2" ] && echo "FOTOS Y DATOS DEL N°30: OK" || { echo "FALLA fotos: $F"; exit 1; }

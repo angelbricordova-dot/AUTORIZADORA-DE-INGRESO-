@@ -1,16 +1,18 @@
 // Modo demo: todo se guarda en este navegador. Los datos de ejemplo son inventados.
-import type { Property, PublicData, Reservation } from '../types';
+import type { CashMovement, Payment, Property, PublicData, Reservation, StayOps } from '../types';
 import { addDays, todayISO } from '../dates';
 import { conflictsFor } from '../availability';
 import type { AppData, DataStore } from './types';
 import { DEFAULT_SETTINGS, OWN_DEFAULTS, ownProperty } from './types';
-import { sanitizeGuests, sanitizeProperty, sanitizeReservation, sanitizeVehicles } from './validate';
+import { sanitizeCash, sanitizeGuests, sanitizeOpsPatch, sanitizePayment, sanitizeProperty, sanitizeReservation, sanitizeVehicles } from './validate';
+import { emptyOps, staffStaysFromApp } from '../ops';
 
-const KEY = 'tudia-demo-v2';
+const KEY = 'tudia-demo-v3';
 
 function seed(): AppData {
   const t = todayISO();
   const own: Property = { ...OWN_DEFAULTS, id: 'demo-30', promo: 'Entre semana: 3 días y 2 noches por $165 para 7 personas' };
+  const at = (days: number, hour = 15) => `${addDays(t, days)}T${String(hour).padStart(2, '0')}:00:00.000Z`;
   const partner = (id: string, unit: string, cost: number, price: number, capacity: number, sort: number): Property => ({
     ...OWN_DEFAULTS,
     id,
@@ -19,6 +21,12 @@ function seed(): AppData {
     title: `Apartamento ${unit}`,
     unit,
     summary: 'Otro apartamento del mismo conjunto, con acceso a piscina y áreas comunes.',
+    description: '',
+    photos: [],
+    bedrooms: 2,
+    beds: capacity - 2,
+    bathrooms: 1,
+    amenities: ['Piscina', 'WiFi', 'Aire acondicionado', 'Estacionamiento'],
     capacity,
     nightly_usd: price,
     partner_cost_usd: cost,
@@ -44,13 +52,38 @@ function seed(): AppData {
     vehicles: [],
     ...p,
   });
+  const pay = (id: string, reservation_id: string, amount_usd: number, method: Payment['method'], received_by: Payment['received_by'], days: number, reference = ''): Payment => ({
+    id, reservation_id, amount_usd, method, received_by, paid_on: addDays(t, days), reference, note: '',
+  });
+  const payments: Payment[] = [
+    pay('pay-1', 'demo-1', 130, 'pago_movil', 'owner', -9, '0412 · ref 4471'),
+    pay('pay-2', 'demo-1', 200, 'efectivo_usd', 'staff', -6),
+    pay('pay-3', 'demo-2', 180, 'zelle', 'owner', -4),
+    pay('pay-4', 'demo-2', 60, 'efectivo_usd', 'staff', -1),
+    pay('pay-5', 'demo-3', 150, 'transferencia', 'owner', -2, 'Banesco 0098'),
+    pay('pay-6', 'demo-5', 360, 'pago_movil', 'owner', -1),
+    pay('pay-7', 'demo-6', 100, 'binance', 'owner', -3),
+  ];
+  const ops: StayOps[] = [
+    {
+      ...emptyOps('demo-1', 100),
+      clean_before_at: at(-7, 12), keys_at: at(-6), deposit_received_at: at(-6), deposit_returned_at: at(-3, 13), deposit_returned_usd: 100,
+      clean_after_at: at(-3, 16), linens_at: at(-2, 11),
+    },
+    { ...emptyOps('demo-2', 100), clean_before_at: at(-2, 12), keys_at: at(-1), deposit_received_at: at(-1) },
+  ];
+  const cash: CashMovement[] = [{ id: 'cash-1', kind: 'gasto', amount_usd: 12, happened_on: addDays(t, -3), note: 'Detergente y cloro' }];
   return {
     settings: { ...DEFAULT_SETTINGS },
     properties: [own, partner('demo-12', '12', 100, 120, 6, 1), partner('demo-21', '21', 80, 100, 5, 2)],
+    payments,
+    ops,
+    cash,
+    team: [],
     reservations: [
       mk({
         id: 'demo-1', contact_name: 'Familia Márquez', contact_phone: '0414 555 0101', channel: 'airbnb',
-        check_in: addDays(t, -6), check_out: addDays(t, -3), total_usd: 330, paid_usd: 330, auth_status: 'enviada', auth_sent_at: addDays(t, -7),
+        check_in: addDays(t, -6), check_out: addDays(t, -3), total_usd: 330, paid_usd: 330, auth_status: 'enviada', auth_sent_at: at(-7),
         guests: [
           { full_name: 'Neyluz Márquez', cedula: '12.816.045', is_minor: false },
           { full_name: 'Carlos Márquez', cedula: '13.402.118', is_minor: false },
@@ -58,7 +91,7 @@ function seed(): AppData {
       }),
       mk({
         id: 'demo-2', contact_name: 'Luis Hernández', contact_phone: '0412 555 0144', channel: 'whatsapp',
-        check_in: addDays(t, -1), check_out: addDays(t, 1), total_usd: 240, paid_usd: 240, auth_status: 'enviada', auth_sent_at: addDays(t, -2),
+        check_in: addDays(t, -1), check_out: addDays(t, 1), total_usd: 240, paid_usd: 240, auth_status: 'enviada', auth_sent_at: at(-2),
         guests: [
           { full_name: 'Luis Hernández', cedula: '18.234.567', is_minor: false },
           { full_name: 'Ana Hernández', cedula: '19.876.543', is_minor: false },
@@ -89,7 +122,7 @@ function read(): AppData {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as AppData;
-      if (parsed && Array.isArray(parsed.reservations) && Array.isArray(parsed.properties) && parsed.settings) return parsed;
+      if (parsed && Array.isArray(parsed.reservations) && Array.isArray(parsed.properties) && Array.isArray(parsed.payments) && parsed.settings) return parsed;
     }
   } catch {
     /* almacenamiento bloqueado o dañado: se usan los datos de ejemplo */
@@ -123,6 +156,17 @@ const commit = (d: AppData) => {
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()));
 
+/** Como en la base real: lo pagado es la suma de los pagos. */
+function withPaid(d: AppData): AppData {
+  return {
+    ...d,
+    reservations: d.reservations.map((r) => ({
+      ...r,
+      paid_usd: Math.round(d.payments.filter((p) => p.reservation_id === r.id).reduce((s, p) => s + p.amount_usd, 0) * 100) / 100,
+    })),
+  };
+}
+
 export const demoStore: DataStore = {
   mode: 'demo',
   async load() {
@@ -149,12 +193,17 @@ export const demoStore: DataStore = {
     if (next.status === 'confirmada' && conflictsFor(next, sameProperty).some((o) => o.status === 'confirmada')) {
       throw new Error('Esas fechas chocan con otra reserva confirmada. Revisa el calendario o márcala como tentativa.');
     }
-    commit({ ...d, reservations: existing ? d.reservations.map((r) => (r.id === next.id ? next : r)) : [...d.reservations, next] });
+    commit(withPaid({ ...d, reservations: existing ? d.reservations.map((r) => (r.id === next.id ? next : r)) : [...d.reservations, next] }));
     return next.id;
   },
   async deleteReservation(id) {
     const d = get();
-    commit({ ...d, reservations: d.reservations.filter((r) => r.id !== id) });
+    commit({
+      ...d,
+      reservations: d.reservations.filter((r) => r.id !== id),
+      payments: d.payments.filter((p) => p.reservation_id !== id),
+      ops: d.ops.filter((o) => o.reservation_id !== id),
+    });
   },
   async saveAuthorization(id, guests, vehicles) {
     const g = sanitizeGuests(guests);
@@ -183,7 +232,14 @@ export const demoStore: DataStore = {
   async deleteProperty(id) {
     const d = get();
     if (d.properties.find((p) => p.id === id)?.kind === 'propio') throw new Error('El apartamento propio no se puede borrar.');
-    commit({ ...d, properties: d.properties.filter((p) => p.id !== id), reservations: d.reservations.filter((r) => r.property_id !== id) });
+    const gone = new Set(d.reservations.filter((r) => r.property_id === id).map((r) => r.id));
+    commit({
+      ...d,
+      properties: d.properties.filter((p) => p.id !== id),
+      reservations: d.reservations.filter((r) => !gone.has(r.id)),
+      payments: d.payments.filter((p) => !gone.has(p.reservation_id)),
+      ops: d.ops.filter((o) => !gone.has(o.reservation_id)),
+    });
   },
   async uploadPhoto(_propertyId, jpeg) {
     // En demo la foto se guarda en el navegador como texto (data URL)
@@ -203,12 +259,64 @@ export const demoStore: DataStore = {
         .sort((a, b) => Number(b.kind === 'propio') - Number(a.kind === 'propio') || a.sort - b.sort)
         .map((p) => ({
           id: p.id, kind: p.kind, title: p.title || p.name, unit: p.unit, conjunto: p.conjunto, summary: p.summary, description: p.description,
-          capacity: p.capacity, bedrooms: p.bedrooms, nightly_usd: p.nightly_usd, promo: p.promo, amenities: p.amenities, photos: p.photos,
+          capacity: p.capacity, bedrooms: p.bedrooms, beds: p.beds, bathrooms: p.bathrooms, nightly_usd: p.nightly_usd, promo: p.promo, amenities: p.amenities, photos: p.photos,
           contact_whatsapp: p.kind === 'propio' ? p.contact_whatsapp : '', airbnb_url: p.kind === 'propio' ? p.airbnb_url : '', instagram_url: p.kind === 'propio' ? p.instagram_url : '',
         })),
       busy: d.reservations
         .filter((r) => ids.has(r.property_id) && r.status === 'confirmada' && r.check_out > from && r.check_in < to)
         .map((r) => ({ property_id: r.property_id, check_in: r.check_in, check_out: r.check_out })),
+    };
+  },
+  async addPayment(input) {
+    const p = sanitizePayment(input);
+    const d = get();
+    if (!d.reservations.some((r) => r.id === p.reservation_id)) throw new Error('No encontré esa estadía.');
+    commit(withPaid({ ...d, payments: [...d.payments, { ...p, id: uid() }] }));
+  },
+  async deletePayment(id) {
+    const d = get();
+    commit(withPaid({ ...d, payments: d.payments.filter((p) => p.id !== id) }));
+  },
+  async saveOps(reservationId, patch) {
+    const clean = sanitizeOpsPatch(patch);
+    const d = get();
+    const current = d.ops.find((o) => o.reservation_id === reservationId) ?? emptyOps(reservationId, d.settings.deposit_usd);
+    const next = { ...current, ...clean };
+    if (next.deposit_returned_usd != null && next.deposit_returned_usd > next.deposit_usd) throw new Error('No se puede devolver más de la garantía.');
+    commit({ ...d, ops: [...d.ops.filter((o) => o.reservation_id !== reservationId), next] });
+  },
+  async addCash(input) {
+    const m = sanitizeCash(input);
+    const d = get();
+    commit({ ...d, cash: [...d.cash, { ...m, id: uid() }] });
+  },
+  async deleteCash(id) {
+    const d = get();
+    commit({ ...d, cash: d.cash.filter((m) => m.id !== id) });
+  },
+  async addTeamMember(email, name) {
+    const d = get();
+    const clean = email.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) throw new Error('Escribe un correo válido.');
+    commit({ ...d, team: [...d.team.filter((m) => m.email !== clean), { member_id: uid(), name: name.trim().slice(0, 40) || 'Equipo', email: clean }] });
+  },
+  async removeTeamMember(memberId) {
+    const d = get();
+    commit({ ...d, team: d.team.filter((m) => m.member_id !== memberId) });
+  },
+  async staffRole() {
+    return null;
+  },
+  async loadStaff() {
+    const d = get();
+    return {
+      name: d.settings.staff_name,
+      deposit_usd: d.settings.deposit_usd,
+      cash_alert_usd: d.settings.cash_alert_usd,
+      stays: staffStaysFromApp(d.reservations, d.properties),
+      ops: structuredClone(d.ops),
+      payments: d.payments.filter((p) => p.received_by === 'staff'),
+      cash: structuredClone(d.cash),
     };
   },
 };

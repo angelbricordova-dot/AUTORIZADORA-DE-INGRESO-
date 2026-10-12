@@ -78,6 +78,10 @@ const NEW_PARTNER: PropertyInput = {
   title: '',
   unit: '',
   summary: '',
+  description: '',
+  bedrooms: null,
+  beds: null,
+  bathrooms: null,
   nightly_usd: null,
   partner_cost_usd: null,
   promo: '',
@@ -271,6 +275,30 @@ export function PropertyForm({ id }: { id?: string }) {
             <input id="cap" className="input" inputMode="numeric" value={String(f.capacity)} onChange={(e) => set('capacity', Number(e.target.value.replace(/\D/g, '')) || 1)} />
           </div>
         </div>
+        <div className="grid-3">
+          {(
+            [
+              ['bedrooms', 'Habitaciones'],
+              ['beds', 'Camas'],
+              ['bathrooms', 'Baños'],
+            ] as const
+          ).map(([k, label]) => (
+            <div className="field" key={k}>
+              <label htmlFor={`f-${k}`}>{label}</label>
+              <input
+                id={`f-${k}`}
+                className="input"
+                inputMode="numeric"
+                maxLength={2}
+                value={f[k] == null ? '' : String(f[k])}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, '');
+                  set(k, v === '' ? null : Number(v));
+                }}
+              />
+            </div>
+          ))}
+        </div>
         {!own ? (
           <div className="field">
             <label htmlFor="name">Nombre interno (solo tú lo ves)</label>
@@ -280,6 +308,18 @@ export function PropertyForm({ id }: { id?: string }) {
         <div className="field">
           <label htmlFor="summary">Descripción corta</label>
           <textarea id="summary" className="textarea" maxLength={280} style={{ minHeight: 80 }} value={f.summary} onChange={(e) => set('summary', e.target.value)} />
+        </div>
+        <div className="field">
+          <label htmlFor="description">Descripción completa</label>
+          <textarea
+            id="description"
+            className="textarea"
+            maxLength={2000}
+            style={{ minHeight: 140 }}
+            placeholder="Lo que hace especial al apartamento. Deja una línea en blanco para separar párrafos."
+            value={f.description}
+            onChange={(e) => set('description', e.target.value)}
+          />
         </div>
       </section>
 

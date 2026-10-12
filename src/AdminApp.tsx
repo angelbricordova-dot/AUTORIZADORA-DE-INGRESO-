@@ -19,6 +19,8 @@ import { SettingsPage } from './pages/Settings';
 import { PropertiesPage, PropertyForm } from './pages/Properties';
 import { MorePage } from './pages/More';
 import { LoginPage } from './pages/Login';
+import { StaffPreviewPage, TeamPage } from './pages/Team';
+import { StaffApp } from './StaffApp';
 
 export function AdminApp() {
   const [session, setSession] = useState<Session | null>(null);
@@ -48,11 +50,25 @@ export function AdminApp() {
 
   if (!authReady) return <div className="app" />;
   if (supabaseConfigured && !session) return <LoginPage />;
-  return <Shell key={session?.user.id ?? 'demo'} />;
+  return <RoleGate key={session?.user.id ?? 'demo'} />;
+}
+
+/** La dueña ve el panel completo; alguien del equipo (Zuleika) solo su panel de trabajo. */
+function RoleGate() {
+  const [role, setRole] = useState<{ name: string } | null | undefined>(supabaseConfigured ? undefined : null);
+  useEffect(() => {
+    if (!supabaseConfigured) return;
+    store
+      .staffRole()
+      .then(setRole)
+      .catch(() => setRole(null));
+  }, []);
+  if (role === undefined) return <div className="app" />;
+  return role ? <StaffApp name={role.name} /> : <Shell />;
 }
 
 const TABS: { to: string; label: string; icon: IconName; match: string[] }[] = [
-  { to: '/', label: 'Inicio', icon: 'home', match: [''] },
+  { to: '/', label: 'Inicio', icon: 'home', match: ['', 'zuleika'] },
   { to: '/calendario', label: 'Calendario', icon: 'calendar', match: ['calendario'] },
   { to: '/reservas', label: 'Estadías', icon: 'list', match: ['reservas', 'reserva'] },
   { to: '/mas', label: 'Más', icon: 'more', match: ['mas', 'ajustes', 'apartamentos', 'apartamento'] },
@@ -132,6 +148,8 @@ function Shell() {
     else if (first === 'apartamento') page = <PropertyForm key={second} id={second === 'nuevo' ? undefined : second} />;
     else if (first === 'ajustes') page = <SettingsPage />;
     else if (first === 'mas') page = <MorePage />;
+    else if (first === 'zuleika' && second === 'vista') page = <StaffPreviewPage />;
+    else if (first === 'zuleika') page = <TeamPage />;
     else page = <NotFound />;
   }
 

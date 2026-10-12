@@ -148,13 +148,17 @@ Rounded and friendly: inputs 12px, buttons 14px, panels 16px, hero and today car
 - **Range calendar** (public): tap check-in, then check-out; selection is a brand capsule; busy nights hatched in coral and struck through.
 - **Dropzone** for ID photos with a camera tile; "Revisa lo leído" badge on every machine-read row until edited.
 - **Chips** for single and multi choice (channel, status, property, amenities), horizontally scrollable on the phone.
-- **Switch** for publish / hide; **stepper** for guests.
+- **Switch** for publish / hide; **stepper** for guests (and for "¿cuántos son niños?" when a group is larger than the apartment).
+- **Cash card** (`.cash-card`): deep brand gradient, the cash Zuleika holds as the big number, a thin meter toward the "worth collecting" threshold that turns sun-yellow when reached; actions are a sun button (withdraw) and a glass button (expense).
+- **Ops card** (`.ops-card`): one arrival ("Llega", brand pill) or departure ("Se va", sun pill) with a done count and a checklist of 52px task rows; each row is a `role="checkbox"` button whose icon box fills green when done. Phone call strip at the bottom.
+- **Photo mosaic + lightbox** (public): one wide tile and four small ones, the last showing "+N"; tapping any photo opens a full-screen swipeable viewer with a counter. The hero carousel shows a "1 / 12" pill.
 
 ## Do's and Don'ts
 
 - Do keep the brand gradient for the hero moments (hero, today card, FAB, brand mark); everything else is white or ground.
 - Do show every machine-read value as editable and flagged for review.
 - Do keep guest data out of the public page: only free/busy nights are public.
+- Do keep Zuleika's view to work data only: dates, contact, people count, amount to collect.
 - Don't put eyebrows above headings or use offset block shadows.
 - Don't use the display face for long text.
 - Don't add a dark theme by default; the scene is outdoor daylight.

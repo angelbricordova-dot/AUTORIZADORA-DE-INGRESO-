@@ -38,3 +38,17 @@ export function bookingMessage(l: Pick<PublicListing, 'kind' | 'title' | 'unit' 
 export function whatsappUrl(phone: string, text: string): string {
   return `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`;
 }
+
+/** Grupo más grande que la capacidad: se pide una excepción antes de ofrecer otros apartamentos. */
+export function exceptionMessage(l: Pick<PublicListing, 'title' | 'capacity'>, from: string | null, to: string | null, guests: number, kids: number): string {
+  const n = from && to ? nightsBetween(from, to) : 0;
+  const adults = Math.max(0, guests - kids);
+  return [
+    `Hola, somos ${guests} personas y nos gustaría quedarnos en ${l.title}.`,
+    kids > 0 ? `Somos ${adults} ${adults === 1 ? 'adulto' : 'adultos'} y ${kids} ${kids === 1 ? 'niño' : 'niños'}.` : '',
+    from && to ? `Entrada: ${weekdayShort(from)} ${formatDayMonth(from)} · Salida: ${weekdayShort(to)} ${formatDayMonth(to)} (${n} ${n === 1 ? 'noche' : 'noches'})` : '',
+    `Sé que el apartamento es para ${l.capacity} personas. ¿Es posible hacer una excepción?`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+}

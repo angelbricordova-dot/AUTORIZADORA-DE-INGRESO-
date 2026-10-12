@@ -41,3 +41,24 @@ describe('bearerToken', () => {
     expect(bearerToken(null)).toBeNull();
   });
 });
+
+describe('cleanVehiculos', () => {
+  it('limpia placa, marca, modelo y color y limita a 2', async () => {
+    const { cleanVehiculos, readKind } = await import('./imagen');
+    const out = cleanVehiculos({
+      vehiculos: [
+        { placa: 'ab-123 cd', marca: 'Toyota<script>', modelo: 'Corolla', color: 'Gris Plata' },
+        { placa: '', marca: '', modelo: '', color: 'rojo' },
+        { placa: 'AA046KT', marca: 'Ford', modelo: 'Fiesta', color: 'azul' },
+        { placa: 'X', marca: 'Kia', modelo: 'Rio', color: 'negro' },
+      ],
+    });
+    expect(out).toEqual([
+      { placa: 'AB123CD', marca: 'Toyota script', modelo: 'Corolla', color: 'gris plata' },
+      { placa: 'AA046KT', marca: 'Ford', modelo: 'Fiesta', color: 'azul' },
+    ]);
+    expect(cleanVehiculos('basura')).toEqual([]);
+    expect(readKind({ kind: 'vehiculo' })).toBe('vehiculo');
+    expect(readKind({ kind: 'otro' })).toBe('cedula');
+  });
+});

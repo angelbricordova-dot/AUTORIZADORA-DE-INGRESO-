@@ -49,3 +49,39 @@ export function bearerToken(header: string | null): string | null {
   const m = header?.match(/^Bearer\s+([A-Za-z0-9._-]{20,4096})$/);
   return m ? m[1] : null;
 }
+
+export type ReadKind = 'cedula' | 'vehiculo';
+
+/** Qué se quiere leer en la foto. Cualquier otro valor se trata como cédula. */
+export function readKind(body: unknown): ReadKind {
+  return (body as { kind?: unknown } | null)?.kind === 'vehiculo' ? 'vehiculo' : 'cedula';
+}
+
+export interface VehiculoLeido {
+  placa: string;
+  marca: string;
+  modelo: string;
+  color: string;
+}
+
+const soloTexto = (v: unknown, max: number) =>
+  typeof v === 'string' ? v.replace(/[^A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ' -]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max) : '';
+
+/** Punto 17: solo placa, marca, modelo y color, limpios; máximo 2 vehículos (límite de la planilla). */
+export function cleanVehiculos(raw: unknown): VehiculoLeido[] {
+  const list = (raw as { vehiculos?: unknown })?.vehiculos;
+  if (!Array.isArray(list)) return [];
+  return list
+    .slice(0, 10)
+    .map((v) => {
+      const o = (v ?? {}) as Record<string, unknown>;
+      return {
+        placa: typeof o.placa === 'string' ? o.placa.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) : '',
+        marca: soloTexto(o.marca, 30),
+        modelo: soloTexto(o.modelo, 40),
+        color: soloTexto(o.color, 30).toLowerCase(),
+      };
+    })
+    .filter((v) => v.placa || v.marca || v.modelo)
+    .slice(0, 2);
+}

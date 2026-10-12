@@ -10,7 +10,7 @@ const template = () => {
 
 const base: AuthorizationSheet = {
   emitted: '2026-10-11',
-  settings: { owner_name: 'Oniris Rojas', owner_cedula: '17571156', conjunto: 'JDC Pescadores I', unit: '30', admin_whatsapp: '' },
+  settings: { owner_name: 'Oniris Rojas', owner_cedula: '17571156', conjunto: 'JDC Pescadores I', unit: '30', admin_whatsapp: '', staff_name: 'Zuleika', cash_alert_usd: 300, deposit_usd: 100 },
   guests: [
     { full_name: 'Juan Pérez', cedula: '12345678', is_minor: false },
     { full_name: '=HYPERLINK("http://malo")', cedula: '9.876.543', is_minor: false },

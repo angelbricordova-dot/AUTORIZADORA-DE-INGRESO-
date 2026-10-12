@@ -22,6 +22,7 @@ export function SettingsPage() {
     setSaving(true);
     try {
       await store.saveSettings({
+        ...s,
         owner_name: cleanText(s.owner_name, 120),
         owner_cedula: formatCedula(s.owner_cedula),
         conjunto: cleanText(s.conjunto, 80) || 'JDC Pescadores I',

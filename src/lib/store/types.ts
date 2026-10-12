@@ -1,9 +1,32 @@
-import type { Guest, Property, PropertyInput, PublicData, Reservation, ReservationInput, Settings, Vehicle } from '../types';
+import type {
+  CashInput,
+  CashMovement,
+  Guest,
+  Payment,
+  PaymentInput,
+  Property,
+  PropertyInput,
+  PublicData,
+  Reservation,
+  ReservationInput,
+  Settings,
+  StaffData,
+  StayOps,
+  StayOpsPatch,
+  TeamMember,
+  Vehicle,
+} from '../types';
 
 export interface AppData {
   settings: Settings;
   properties: Property[];
   reservations: Reservation[];
+  payments: Payment[];
+  ops: StayOps[];
+  cash: CashMovement[];
+  team: TeamMember[];
+  /** La base de datos todavía no tiene la migración de equipo y pagos */
+  migrationPending?: boolean;
 }
 
 export interface DataStore {
@@ -21,6 +44,21 @@ export interface DataStore {
   uploadPhoto(propertyId: string, jpeg: Blob): Promise<string>;
   /** Lo que ve el público: apartamentos publicados y noches ocupadas. */
   loadPublic(from: string, to: string): Promise<PublicData>;
+
+  // Pagos, tareas, garantía y caja (los usan Oniris y Zuleika)
+  addPayment(p: PaymentInput): Promise<void>;
+  deletePayment(id: string): Promise<void>;
+  saveOps(reservationId: string, patch: StayOpsPatch): Promise<void>;
+  addCash(m: CashInput): Promise<void>;
+  deleteCash(id: string): Promise<void>;
+
+  // Equipo
+  addTeamMember(email: string, name: string): Promise<void>;
+  removeTeamMember(memberId: string): Promise<void>;
+  /** Si quien entró es del equipo (Zuleika) devuelve su nombre; si es la dueña, null. */
+  staffRole(): Promise<{ name: string } | null>;
+  /** Lo que ve el equipo: agenda sin datos personales, sus cobros, tareas y caja. */
+  loadStaff(today: string): Promise<StaffData>;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -29,7 +67,26 @@ export const DEFAULT_SETTINGS: Settings = {
   conjunto: 'JDC Pescadores I',
   unit: '30',
   admin_whatsapp: '',
+  staff_name: 'Zuleika',
+  cash_alert_usd: 300,
+  deposit_usd: 100,
 };
+
+/** Fotos del N°30 que vienen con el sitio (public/fotos). */
+export const OWN_PHOTOS = [
+  'n30-01-sala-comedor',
+  'n30-02-piscina',
+  'n30-03-sala',
+  'n30-04-cocina',
+  'n30-05-habitacion',
+  'n30-06-literas',
+  'n30-07-sala-sofa',
+  'n30-08-tv',
+  'n30-09-bano',
+  'n30-10-bano-2',
+  'n30-11-entrada',
+  'n30-12-piscina-noche',
+].map((n) => `/fotos/${n}.jpg`);
 
 export const OWN_DEFAULTS: Omit<Property, 'id'> = {
   kind: 'propio',
@@ -37,15 +94,26 @@ export const OWN_DEFAULTS: Omit<Property, 'id'> = {
   title: 'Tu Día en Tucacas · Apartamento N°30',
   conjunto: 'JDC Pescadores I',
   unit: '30',
-  summary: 'Hospedaje en el Conjunto Residencial Pescadores I, a minutos de la playa.',
-  description: '',
+  summary: 'Piso 1 en Pescadores I: comodidad real para 7 personas, a 5 minutos de los muelles.',
+  description: [
+    'Ubicados en Res. Pescadores I (piso 1), ofrecemos comodidad real para 7 personas sin romper el presupuesto.',
+    '',
+    'Cero estrés: tanque de agua interno, no dependemos solo del edificio.',
+    'Conectados: WiFi de fibra óptica de alta velocidad.',
+    'Clima: aire acondicionado en todos los ambientes.',
+    'Ubicación: a 5 minutos de los muelles y a 20 minutos en carro del Parque Nacional Morrocoy.',
+    '',
+    'Ideal para familias que quieren ahorrar para sus paseos a los cayos.',
+  ].join('\n'),
   capacity: 7,
-  bedrooms: null,
+  bedrooms: 2,
+  beds: 5,
+  bathrooms: 2,
   nightly_usd: 90,
   partner_cost_usd: null,
   promo: '',
-  amenities: ['A minutos de la playa', 'Piscina', 'Áreas recreativas', 'WiFi', 'Seguridad', 'Servicio de agua'],
-  photos: [],
+  amenities: ['Piscina', 'WiFi', 'Aire acondicionado', 'Tanque de agua propio', 'Cocina equipada', 'Estacionamiento', 'Televisión', 'Seguridad', 'Áreas recreativas', 'Cerca de los muelles'],
+  photos: OWN_PHOTOS,
   published: true,
   sort: 0,
   owner_name: '',

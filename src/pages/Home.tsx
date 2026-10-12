@@ -8,6 +8,7 @@ import { href } from '../router';
 import { Icon } from '../components/Icon';
 import { LogoMark } from '../components/Logo';
 import { Strip } from '../components/Strip';
+import { cashBalance, depositsHeld, pendingToday, staffStaysFromApp, withdrawHint } from '../lib/ops';
 
 function PendingRow({ item, today, prop }: { item: PendingItem; today: string; prop?: Property }) {
   const r = item.reservation;
@@ -105,6 +106,21 @@ export function HomePage() {
   }
   if (mv.departures[0] && !mv.arrivals[0]) label = `Hoy sale ${mv.departures[0].contact_name}`;
 
+  // Zuleika: efectivo que guarda, tareas de hoy y garantías
+  const staffStays = staffStaysFromApp(data.reservations, data.properties);
+  const cash = cashBalance(data.payments, data.ops, data.cash);
+  const hint = withdrawHint(cash, data.settings.cash_alert_usd);
+  const tasks = pendingToday(staffStays, data.ops, today, data.settings.deposit_usd);
+  const held = depositsHeld(staffStays, data.ops, today);
+  const staffName = data.settings.staff_name || 'Zuleika';
+  const staffSub = [
+    tasks ? `${tasks} ${tasks === 1 ? 'tarea' : 'tareas'} hoy` : 'Sin tareas pendientes hoy',
+    held.length ? `${held.length} ${held.length === 1 ? 'garantía' : 'garantías'} por devolver` : '',
+    hint.ready ? 'ya conviene retirar' : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   return (
     <div className="page">
       <div className="hello">
@@ -126,6 +142,19 @@ export function HomePage() {
           </a>
         </div>
       </section>
+
+      <a className={`panel staff-link ${hint.ready ? 'ready' : ''}`} href={href('/zuleika')}>
+        <span className="lead-icon lead-brand">
+          <Icon name="wallet" />
+        </span>
+        <span className="grow">
+          <span className="title">
+            {staffName} guarda <span className="amount">{formatUSD(cash)}</span>
+          </span>
+          <span className="sub">{staffSub}</span>
+        </span>
+        <Icon name="chevronRight" className="chev" />
+      </a>
 
       <section className="section" aria-labelledby="h-noches">
         <div className="section-head">

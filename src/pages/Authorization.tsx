@@ -6,7 +6,7 @@ import { addDays, compareISO, formatDMY, formatDayMonth, formatLong, isValidISO,
 import { formatCedula, isValidCedula, isValidPlate, normalizePlate, parseGuestText } from '../lib/cedula';
 import { checkImageFile, thumbnail } from '../lib/image';
 import { readCedulasLocal, readPlateLocal, warmUpOcr } from '../lib/ocr';
-import { readCedulaAI } from '../lib/ai';
+import { readCedulaAI, readVehicleAI } from '../lib/ai';
 import { conflictsFor } from '../lib/availability';
 import { settingsFor } from '../lib/store/types';
 import { authorizationFileName, buildAuthorizationXlsx, validateSheet, type AuthorizationSheet } from '../lib/excel';
@@ -177,21 +177,40 @@ function AuthorizationEditor({ r, initialProperty }: { r: Reservation | null; in
     if (total > ok.length) toast(`Encontré ${total} cédulas en ${ok.length === 1 ? 'la foto' : `${ok.length} fotos`}. Revísalas.`);
   }
 
-  async function readPlatePhoto(file: File) {
+  async function readVehiclePhoto(file: File) {
     const problem = checkImageFile(file);
     if (problem) return toast(problem, 'bad');
-    if (vehicles.length >= MAX_VEHICLES) return toast(`La planilla admite ${MAX_VEHICLES} vehículos.`, 'bad');
-    setReading('Leyendo la placa…');
+    const free = MAX_VEHICLES - vehicles.length;
+    if (free <= 0) return toast(`La planilla admite ${MAX_VEHICLES} vehículos.`, 'bad');
     const thumb = await thumbnail(file).catch(() => undefined);
-    let plate = '';
-    try {
-      plate = await readPlateLocal(file);
-    } catch {
-      /* se escribe a mano */
+    let found: { description: string; plate: string }[] = [];
+    let aiFailed = false;
+    if (mode === 'ia') {
+      setReading('Leyendo el vehículo con IA…');
+      try {
+        const token = await getAccessToken();
+        if (!token) throw new Error('Inicia sesión para usar la lectura con IA.');
+        found = await readVehicleAI(file, token);
+      } catch (e) {
+        aiFailed = true;
+        toast((e as Error).message || 'La IA no pudo leer la foto.', 'bad');
+      }
     }
-    setVehicles((cur) => [...cur, { key: nextKey(), description: '', plate, thumb, review: true }]);
+    // Sin IA, o si la IA no vio la placa: se intenta leer la placa en el teléfono
+    if (!found.length || !found[0].plate) {
+      setReading('Leyendo la placa en el teléfono…');
+      const plate = await readPlateLocal(file).catch(() => '');
+      if (found.length) found[0] = { ...found[0], plate: found[0].plate || plate };
+      else if (plate || !aiFailed) found = [{ description: '', plate }];
+    }
+    if (!found.length) found = [{ description: '', plate: '' }];
+    setVehicles((cur) => [...cur, ...found.slice(0, free).map((v) => ({ key: nextKey(), description: v.description, plate: v.plate, thumb, review: true }))]);
     setReading(null);
-    if (!plate) toast('No se leyó la placa. Escríbela a mano.', 'bad');
+    const first = found[0];
+    if (!first.plate && !first.description) toast('No se leyó el vehículo. Escribe modelo, color y placa.', 'bad');
+    else if (!first.plate) toast('Leí el vehículo pero no la placa. Escríbela a mano.', 'bad');
+    else if (!first.description) toast('Leí la placa. Agrega modelo y color.');
+    else toast(found.length > 1 ? `Leí ${Math.min(found.length, free)} vehículos. Revísalos.` : 'Vehículo leído. Revisa modelo, color y placa.');
   }
 
   function onFiles(e: ChangeEvent<HTMLInputElement>) {
@@ -443,7 +462,7 @@ function AuthorizationEditor({ r, initialProperty }: { r: Reservation | null; in
           />
         </label>
 
-        <div className="segmented" role="radiogroup" aria-label="Cómo leer las cédulas">
+        <div className="segmented" role="radiogroup" aria-label="Cómo leer las fotos">
           <label className="chip">
             <input type="radio" name="mode" checked={mode === 'local'} onChange={() => setMode('local')} />
             <span>Leer en el teléfono</span>
@@ -525,6 +544,11 @@ function AuthorizationEditor({ r, initialProperty }: { r: Reservation | null; in
         ) : (
           <p className="hint">Si llegan sin carro, deja esta parte vacía.</p>
         )}
+        <p className="hint">
+          {mode === 'ia'
+            ? 'Con IA se leen placa, marca, modelo y color: sirve una foto del carro, de la placa o del carnet de circulación.'
+            : 'En el teléfono se lee solo la placa. Para leer también modelo y color, elige “Con IA”.'}
+        </p>
         <div className="row-wrap">
           <button
             className="btn btn-soft btn-small"
@@ -535,7 +559,7 @@ function AuthorizationEditor({ r, initialProperty }: { r: Reservation | null; in
             <Icon name="car" /> Agregar vehículo
           </button>
           <label className={`btn btn-ghost btn-small ${vehicles.length >= MAX_VEHICLES ? 'is-disabled' : ''}`}>
-            <Icon name="camera" /> Foto de la placa
+            <Icon name="camera" /> Foto del carro o la placa
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
@@ -544,7 +568,7 @@ function AuthorizationEditor({ r, initialProperty }: { r: Reservation | null; in
               onChange={(e) => {
                 const f = e.target.files?.[0];
                 e.target.value = '';
-                if (f) readPlatePhoto(f);
+                if (f) readVehiclePhoto(f);
               }}
             />
           </label>
@@ -715,12 +739,12 @@ function VehicleEditor({ v, index, onChange, onRemove }: { v: VehicleRow; index:
       <div className="person-fields">
         <div className="field">
           <label htmlFor={`v-${v.key}-d`} className="visually-hidden">
-            Modelo y color del vehículo {index + 1}
+            Marca, modelo y color del vehículo {index + 1}
           </label>
           <input
             id={`v-${v.key}-d`}
             className="input"
-            placeholder="Modelo y color · Ej: Corolla vinotinto"
+            placeholder="Marca, modelo y color · Ej: Toyota Corolla vinotinto"
             autoComplete="off"
             maxLength={80}
             value={v.description}
@@ -749,8 +773,8 @@ function VehicleEditor({ v, index, onChange, onRemove }: { v: VehicleRow; index:
       </button>
       {v.thumb || v.review || plateBad ? (
         <div className="person-meta">
-          {v.thumb ? <img className="thumb" src={v.thumb} alt="Foto de la placa" /> : null}
-          {v.review ? <span className="badge badge-warn">Revisa y agrega modelo y color</span> : null}
+          {v.thumb ? <img className="thumb" src={v.thumb} alt="Foto del vehículo" /> : null}
+          {v.review ? <span className="badge badge-warn">{v.description && v.plate ? 'Revisa lo leído' : v.plate ? 'Agrega modelo y color' : 'Revisa la placa'}</span> : null}
           {plateBad ? <span className="badge badge-bad">Placa inválida</span> : null}
         </div>
       ) : null}

@@ -1831,3 +1831,338 @@ textarea {
     animation: spin 1.2s linear infinite !important;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Zuleika: caja, tareas y garantías                                   */
+/* ------------------------------------------------------------------ */
+
+.staff-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  text-decoration: none;
+  color: inherit;
+}
+.staff-link .grow {
+  flex: 1;
+  min-width: 0;
+}
+.staff-link .title {
+  display: block;
+  font-weight: 650;
+}
+.staff-link .sub {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+.staff-link .chev {
+  width: 18px;
+  height: 18px;
+  color: var(--line-strong);
+}
+.staff-link.ready .lead-icon {
+  background: var(--sun-soft);
+  color: var(--sun-ink);
+}
+
+.cash-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  color: #fff;
+  background: linear-gradient(150deg, var(--brand-2) 0%, var(--brand-deep) 70%, var(--brand-ink) 100%);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--brand) 28%, transparent);
+  overflow: hidden;
+}
+.cash-card .label {
+  font-size: 0.875rem;
+  font-weight: 650;
+  color: rgba(255, 255, 255, 0.8);
+}
+.cash-card .big {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 13vw, 3.25rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.cash-card .meta {
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.9375rem;
+}
+.cash-card .meta.small {
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.72);
+}
+.cash-card .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.meter {
+  height: 8px;
+  margin: 6px 0 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+}
+.meter i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.85);
+  transform-origin: left;
+  transform: scaleX(var(--p, 0));
+  transition: transform 600ms var(--ease-out);
+}
+.cash-card.ready .meter i {
+  background: var(--sun);
+}
+.btn-glass {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+.btn-glass:active {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.empty-line {
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+  box-shadow: var(--shadow);
+}
+
+.day-block {
+  gap: 10px;
+}
+.day-head {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--ink-2);
+  margin-top: 4px;
+}
+
+.ops-card {
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  animation: rise 320ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+.ops-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 14px 10px;
+}
+.ops-head .grow {
+  flex: 1;
+  min-width: 0;
+}
+.ops-head .title {
+  display: block;
+  font-weight: 700;
+  color: inherit;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.ops-head .sub {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.ops-event {
+  flex: none;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+.ops-event.llega {
+  background: var(--brand-soft);
+  color: var(--brand-deep);
+}
+.ops-event.sale {
+  background: var(--sun-soft);
+  color: var(--sun-ink);
+}
+.ops-count {
+  flex: none;
+  min-width: 42px;
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.ops-count.all {
+  color: var(--ok);
+}
+.tasks {
+  list-style: none;
+  margin: 0;
+  padding: 0 8px 8px;
+}
+.task {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+.task:active {
+  background: var(--surface-2);
+}
+@media (hover: hover) and (pointer: fine) {
+  .task:hover {
+    background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+  }
+}
+.task-box {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  border: 2px solid var(--line-strong);
+  color: var(--muted);
+  transition:
+    background-color 180ms var(--ease-out),
+    border-color 180ms var(--ease-out),
+    transform 180ms var(--ease-out);
+}
+.task-box svg {
+  width: 19px;
+  height: 19px;
+}
+.task:active .task-box {
+  transform: scale(0.92);
+}
+.task.done .task-box {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: #fff;
+}
+.task.done .task-label {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--muted) 50%, transparent);
+}
+.task-label {
+  flex: 1;
+  min-width: 0;
+}
+.task .badge {
+  flex: none;
+}
+.ops-call {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  border-top: 1px solid var(--line);
+  color: var(--brand-deep);
+  font-weight: 650;
+  text-decoration: none;
+}
+.ops-call svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ledger {
+  display: flex;
+  flex-direction: column;
+}
+.ledger-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.ledger-row:last-child {
+  border-bottom: 0;
+}
+.ledger-row .grow {
+  flex: 1;
+  min-width: 0;
+}
+.ledger-row .title {
+  display: block;
+  font-weight: 650;
+}
+.ledger-row .sub {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.ledger-amounts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.amount.pos {
+  color: var(--ok);
+}
+.amount.neg {
+  color: var(--ink-2);
+}
+
+.input-big {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+  min-height: 60px;
+}
+.steps {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--ink-2);
+}
+button.list-item {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.row > .input.grow {
+  flex: 1;
+  min-width: 0;
+}
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.share-agenda {
+  align-self: flex-start;
+}

@@ -1,5 +1,5 @@
 // Punto 14: validación antes de enviar a la base de datos (la base vuelve a validar con CHECKs).
-import type { Guest, PropertyInput, ReservationInput, Vehicle } from '../types';
+import type { CashInput, Guest, PaymentInput, PropertyInput, ReservationInput, StayOpsPatch, Vehicle } from '../types';
 import { CHANNELS, MAX_GUESTS, MAX_VEHICLES, STAY_TYPES } from '../types';
 import { isValidISO, nightsBetween } from '../dates';
 import { cleanPersonName, cleanPhone, cleanText } from '../sanitize';
@@ -69,6 +69,8 @@ export function sanitizeProperty(p: PropertyInput): PropertyInput {
     description: (p.description || '').normalize('NFC').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, '').trim().slice(0, 2000),
     capacity: Math.max(1, Math.min(30, Math.round(Number(p.capacity) || 1))),
     bedrooms: p.bedrooms == null || (p.bedrooms as unknown) === '' ? null : Math.max(0, Math.min(20, Math.round(Number(p.bedrooms)))),
+    beds: p.beds == null || (p.beds as unknown) === '' ? null : Math.max(0, Math.min(40, Math.round(Number(p.beds)))),
+    bathrooms: p.bathrooms == null || (p.bathrooms as unknown) === '' ? null : Math.max(0, Math.min(20, Math.round(Number(p.bathrooms)))),
     nightly_usd: money(p.nightly_usd),
     partner_cost_usd: p.kind === 'aliado' ? money(p.partner_cost_usd) : null,
     promo: cleanText(p.promo, 140),
@@ -88,5 +90,52 @@ export function sanitizeProperty(p: PropertyInput): PropertyInput {
   if (out.instagram_url && !/^https:\/\/(www\.)?instagram\.com\//.test(out.instagram_url)) throw new Error('El enlace de Instagram no es válido.');
   if (out.kind === 'aliado' && out.nightly_usd != null && out.partner_cost_usd != null && out.nightly_usd < out.partner_cost_usd)
     throw new Error('El precio público no puede ser menor a lo que cobra el dueño.');
+  return out;
+}
+
+const PAY_IDS = ['efectivo_usd', 'pago_movil', 'transferencia', 'zelle', 'binance', 'efectivo_bs', 'tarjeta', 'otro'];
+const money2 = (v: unknown) => Math.round((Number(v) || 0) * 100) / 100;
+
+export function sanitizePayment(p: PaymentInput): PaymentInput {
+  const out: PaymentInput = {
+    reservation_id: String(p.reservation_id || ''),
+    amount_usd: money2(p.amount_usd),
+    method: p.method,
+    received_by: p.received_by === 'staff' ? 'staff' : 'owner',
+    paid_on: p.paid_on,
+    reference: cleanText(p.reference, 60),
+    note: cleanText(p.note, 200),
+  };
+  if (!out.reservation_id) throw new Error('Falta la estadía del pago.');
+  if (!(out.amount_usd > 0) || out.amount_usd > 100000) throw new Error('Escribe un monto mayor que cero.');
+  if (!PAY_IDS.includes(out.method)) throw new Error('Elige cómo pagó.');
+  if (!isValidISO(out.paid_on)) throw new Error('Revisa la fecha del pago.');
+  return out;
+}
+
+export function sanitizeCash(m: CashInput): CashInput {
+  const out: CashInput = { kind: m.kind, amount_usd: money2(m.amount_usd), happened_on: m.happened_on, note: cleanText(m.note, 200) };
+  if (!['retiro', 'gasto', 'ajuste'].includes(out.kind)) throw new Error('Movimiento inválido.');
+  if (out.kind !== 'ajuste') out.amount_usd = Math.abs(out.amount_usd);
+  if (!out.amount_usd || Math.abs(out.amount_usd) > 100000) throw new Error('Escribe un monto.');
+  if (!isValidISO(out.happened_on)) throw new Error('Revisa la fecha.');
+  if (out.kind === 'gasto' && !out.note) throw new Error('Escribe en qué se gastó.');
+  return out;
+}
+
+const STAMP = /^\d{4}-\d{2}-\d{2}T[0-9:.]+(Z|[+-]\d{2}:?\d{2})?$/;
+
+export function sanitizeOpsPatch(p: StayOpsPatch): StayOpsPatch {
+  const out: StayOpsPatch = {};
+  for (const k of ['clean_before_at', 'keys_at', 'clean_after_at', 'linens_at', 'deposit_received_at', 'deposit_returned_at'] as const) {
+    if (k in p) {
+      const v = p[k];
+      if (v !== null && !(typeof v === 'string' && STAMP.test(v))) throw new Error('Fecha inválida.');
+      out[k] = v ?? null;
+    }
+  }
+  if ('deposit_usd' in p) out.deposit_usd = Math.max(0, Math.min(10000, money2(p.deposit_usd)));
+  if ('deposit_returned_usd' in p) out.deposit_returned_usd = p.deposit_returned_usd == null ? null : Math.max(0, money2(p.deposit_returned_usd));
+  if ('note' in p) out.note = cleanText(p.note, 500);
   return out;
 }

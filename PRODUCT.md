@@ -14,7 +14,8 @@ Delegated, with the user's two constraints: hosted on **Netlify**, data in **Sup
 
 - **Oniris Rojas** (owner, primary user). Owns apartment **N°30** in **Conjunto Residencial Pescadores I** (Tucacas, Falcón, Venezuela), managed by administradora **JDC Pescadores I**. Rents it by the night through Airbnb, Stay, Facebook Marketplace, Mercado Libre and social media / WhatsApp. Works mostly from her phone, often while chatting with guests on WhatsApp.
 - **Angel** (family member, builds and co-manages the app; handles reception of inquiries).
-- Later: other owners inside the same conjunto whose apartments join a shared catalog (phase 2).
+- **Zuleika** (employee who lives in Tucacas): cleans before and after each stay, hands over keys, washes linens, collects the $100 guarantee deposit on arrival and returns it after inspecting the apartment, and keeps guests' USD cash payments until Oniris comes to collect. Has her own login with a work-only view (no IDs, plates, notes or partner costs).
+- Other owners inside the same conjunto whose apartments join the shared catalog.
 
 ## Product Purpose
 
@@ -23,6 +24,8 @@ Phase 1: stop losing time filling the conjunto's entry-authorization form by han
 Success: an authorization goes from "guest sent photos" to "sent to the administradora" in under two minutes, with no retyping, and Oniris always knows who is entering, when, and what is still pending or unpaid.
 
 Public page (main surface, built): "Tu Día en Tucacas", the N°30's own website. Shows price, amenities, photos and real availability; guests pick dates and book via WhatsApp (584242703482). If the dates are taken, it offers partner apartments of the same conjunto that are free on those dates; the partner sets a nightly price and the page sells it with a markup (example: partner $100 → offered at $120, $20 commission). The admin panel lives inside the same app at /admin.
+
+Operations (built): per-stay payments with method (cash USD, pago móvil, transfer, Zelle, Binance, Bs cash, POS) and receiver; Zuleika's task checklist per arrival/departure; guarantee deposits held and returned (retained damage money goes to the cash box); a running cash balance with a "worth collecting" threshold.
 
 ## Positioning
 
@@ -41,11 +44,12 @@ Built for one specific gate: it produces the exact JDC Pescadores I authorizatio
 - Cédula photos are sensitive: process them on the device, never store them.
 - Spanish (Venezuela) UI, dates dd/mm/yyyy, money in USD.
 - Security baseline required by the user (20 points): hidden API keys, no secrets in Git, public DB key only, RLS, encryption of sensitive data, forced auth, record-level access, field-tampering protection, protected sessions, hashed passwords, rate limiting, bot protection, parametrized queries, input validation, content sanitization, file restrictions, minimal data returned, security headers, HTTPS, dependency scanning.
-- Undecided: real apartment photos (to be uploaded from the panel), partner list and their prices, whether the administradora wants PDF/image in addition to the Excel.
+- Real N°30 photos came as 240 px Airbnb thumbnails; full-resolution originals still pending. Partner list and prices pending; a neighbor's apartment is the first partner to add.
 
 ## Brand Commitments
 
 - Brand: **Tu Día en Tucacas** (Instagram @aribnb.tucacas, "Alquiler por día · Airbnb"). Logo: white line art (palm, waves, sun, seagull, road) on a green-teal gradient; vectorized into `src/components/Logo.tsx`.
+- Listing facts from Airbnb: piso 1, 7 huéspedes, 2 habitaciones, 5 camas, 2 baños, tanque de agua interno, WiFi de fibra óptica, A/C en todos los ambientes, 5 min de los muelles, 20 min del Parque Nacional Morrocoy, estacionamiento, piscina.
 - Public facts confirmed from Instagram: Hospedaje Pescadores, a minutos de la playa, WiFi, seguridad, agua, piscina, áreas recreativas; groups up to 7; $90/night and weekday promo 3 días 2 noches $165 (editable in the panel).
 - The user asked for phone-first, more dynamic UI, and rejected the stencil numerals and the scalloped blue header of v1.
 
