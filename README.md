@@ -2,8 +2,10 @@
 
 Página web del apartamento **N°30** del Conjunto Residencial **Pescadores I** (Tucacas) con un **panel de administración** para Oniris dentro de la misma app.
 
-- **`/` — página pública** (para huéspedes, pensada para el teléfono): fotos, precio, servicios, calendario con las noches libres y ocupadas, y botón para **reservar por WhatsApp** con las fechas y personas ya escritas. Si esas fechas están ocupadas, muestra **otros apartamentos del conjunto libres en esas fechas** (catálogo de aliados) para no perder al cliente.
-- **`/admin` — panel** (con login): autorizaciones de ingreso, calendario, estadías, pagos, apartamentos aliados con su comisión y el panel de **Zuleika**.
+- **`/` — inicio público** (pensado para el teléfono): presenta la marca, busca fechas en **todos** los apartamentos a la vez, muestra el N°30 destacado y los aliados, cómo reservar, Tucacas y contacto por WhatsApp.
+- **`/apartamento/30`, `/apartamento/12`… — una página por apartamento**: fotos, precio, servicios, calendario con las noches libres y ocupadas, y botón para **reservar por WhatsApp** con las fechas y personas ya escritas. Si esas fechas están ocupadas, muestra **otros apartamentos del conjunto libres en esas fechas** para no perder al cliente.
+- **Modo día y modo noche** en todo el sitio y el panel (sigue al teléfono; el botón sol/luna lo cambia con una transición circular y lo recuerda).
+- **`/admin` — panel** (con login; no hay ningún enlace visible desde la página pública): autorizaciones de ingreso, calendario, estadías, pagos, apartamentos aliados con su comisión y el panel de **Zuleika**.
 - **Zuleika** entra en la misma dirección `/admin` con su propio usuario y ve **solo su panel de trabajo**: entradas y salidas, limpieza, llaves, lencería, garantías y el efectivo que guarda. Nunca ve cédulas, placas, notas ni lo que cobran los aliados.
 
 ## Qué hace el panel
@@ -24,7 +26,10 @@ Página web del apartamento **N°30** del Conjunto Residencial **Pescadores I** 
 
 ## Página pública
 
+- Inicio con el logo que se dibuja solo, olas en movimiento, buscador de fechas, apartamento destacado, pasos para reservar y Tucacas.
 - Fotos reales del N°30 (portada deslizable, mosaico y fotos a pantalla completa), descripción, habitaciones, camas y baños.
+- "Lo que incluye" muestra 3 servicios y el resto se despliega.
+- Al pie: WhatsApp, Instagram y Airbnb.
 - Calendario con noches libres y ocupadas, precio total y **reservar por WhatsApp**.
 - **Más de 7 personas**: primero ofrece **consultar una excepción por WhatsApp** (con cuántos son niños); debajo, otros apartamentos del conjunto para el grupo.
 
@@ -51,6 +56,7 @@ npm run dev
    2. `20261012000000_sitio_publico.sql` (página pública y catálogo de aliados)
    3. `20261012000100_fotos_storage.sql` (fotos de los apartamentos)
    4. `20261013000000_equipo_pagos.sql` (pagos, Zuleika, garantías, caja y fotos reales del N°30)
+   5. `20261014000000_varias_administradoras.sql` (Oniris, Angélica y tú en el mismo panel)
 
    Si ya ejecutaste los anteriores, solo corre el que falta. Los pagos que ya tenías anotados se conservan como "Registrado antes del detalle de pagos".
 3. **Authentication → Sign In / Providers → Email:** desactiva **"Allow new users to sign up"** (nadie puede registrarse por su cuenta).
@@ -78,11 +84,17 @@ npm run dev
 
 La misma API key sirve para leer **vehículos** (placa, marca, modelo y color).
 
-### Darle acceso a Zuleika
+### Dar acceso a otras administradoras y a Zuleika
 
-1. Supabase → **Authentication → Users → Add user**: crea su usuario con su correo y una contraseña (marca *Auto Confirm User*).
-2. En el panel: **Más → Zuleika → Acceso de Zuleika a su panel**, escribe ese correo y toca **Dar acceso**.
-3. Ella abre la misma dirección `/admin` en su teléfono y entra con su correo: ve directamente su panel. Para quitarle el acceso, toca la papelera junto a su nombre.
+Cada usuario de Supabase, por sí solo, tiene su **propio** panel vacío. Para que varias personas vean el mismo:
+
+1. Supabase → **Authentication → Users → Add user**: crea el usuario con su correo y una contraseña (marca *Auto Confirm User*).
+2. Entra al panel con la cuenta que **tiene los datos** y ve a **Más → Accesos al panel**. Escribe el nombre y el correo y elige:
+   - **Administradora** (Oniris, Angélica): ve y maneja todo, igual que tú.
+   - **Trabajo** (Zuleika): solo su panel de tareas, garantías y caja.
+3. Esa persona entra en `/admin` con su correo. Si ya había entrado antes y vio un panel vacío, ese panel vacío se borra al darle acceso.
+
+Para quitar un acceso, toca la papelera junto a su nombre.
 
 ### Borrado automático de cédulas viejas (recomendado)
 
@@ -96,7 +108,7 @@ Borra cédulas y placas de estadías que terminaron hace más de 60 días. Las e
 
 ### Fotos del apartamento
 
-Las 12 fotos actuales del N°30 vienen incluidas en el sitio (`public/fotos/`) y la migración 4 las asigna. Son las miniaturas que trae Airbnb (240 px): **para que se vean nítidas, súbelas en tamaño original** desde el teléfono.
+Las 12 fotos actuales del N°30 vienen incluidas en el sitio (`public/fotos/`) y la migración 4 las asigna. Venían como miniaturas de Airbnb (240 px); se ampliaron 4× con un modelo de IA (ESRGAN) para que se vean mejor, pero **la calidad real llega subiendo las originales** desde la galería del teléfono.
 
 En el panel: **Más → Apartamentos y catálogo → Tu apartamento → Fotos → +**. Puedes elegir varias a la vez desde el teléfono; se reducen y se les borra la ubicación antes de subirlas. La primera es la portada de la página. Ahí mismo cambias precio, promoción, servicios, WhatsApp de reservas y enlaces de Airbnb e Instagram.
 

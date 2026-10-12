@@ -294,11 +294,11 @@ export const demoStore: DataStore = {
     const d = get();
     commit({ ...d, cash: d.cash.filter((m) => m.id !== id) });
   },
-  async addTeamMember(email, name) {
+  async addTeamMember(email, name, role) {
     const d = get();
     const clean = email.trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) throw new Error('Escribe un correo válido.');
-    commit({ ...d, team: [...d.team.filter((m) => m.email !== clean), { member_id: uid(), name: name.trim().slice(0, 40) || 'Equipo', email: clean }] });
+    commit({ ...d, team: [...d.team.filter((m) => m.email !== clean), { member_id: uid(), name: name.trim().slice(0, 40) || 'Equipo', email: clean, role: role === 'admin' ? 'admin' : 'staff' }] });
   },
   async removeTeamMember(memberId) {
     const d = get();

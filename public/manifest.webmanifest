@@ -1,7 +1,7 @@
 {
   "name": "Tu Día en Tucacas",
   "short_name": "Tu Día",
-  "start_url": "/admin",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#f4f7f6",
   "theme_color": "#1d7f68",

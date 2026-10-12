@@ -14,6 +14,7 @@ import type {
   StayOps,
   StayOpsPatch,
   TeamMember,
+  TeamRole,
   Vehicle,
 } from '../types';
 
@@ -53,7 +54,7 @@ export interface DataStore {
   deleteCash(id: string): Promise<void>;
 
   // Equipo
-  addTeamMember(email: string, name: string): Promise<void>;
+  addTeamMember(email: string, name: string, role: TeamRole): Promise<void>;
   removeTeamMember(memberId: string): Promise<void>;
   /** Si quien entró es del equipo (Zuleika) devuelve su nombre; si es la dueña, null. */
   staffRole(): Promise<{ name: string } | null>;

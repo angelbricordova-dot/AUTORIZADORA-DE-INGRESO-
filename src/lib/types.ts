@@ -209,10 +209,14 @@ export interface CashMovement {
 }
 export type CashInput = Omit<CashMovement, 'id'>;
 
+/** admin: maneja todo el panel (Oniris, Angélica). staff: solo su panel de trabajo (Zuleika). */
+export type TeamRole = 'admin' | 'staff';
+
 export interface TeamMember {
   member_id: string;
   name: string;
   email: string;
+  role: TeamRole;
 }
 
 /** Lo que el equipo ve de una estadía: sin cédulas, placas ni notas. */

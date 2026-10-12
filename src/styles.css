@@ -11,6 +11,7 @@
   --brand-deep: #0e4f4a;
   --brand-ink: #0b3a36;
   --brand-soft: #e2f2ec;
+  --brand-text: #0b3a36;
   --brand-softer: #f0f8f5;
   --sea: #17a3a0;
   --sun: #f4b63f;
@@ -63,6 +64,93 @@
   --tabbar-h: 68px;
   --gutter: 16px;
   --maxw: 560px;
+}
+
+/* Modo noche: el mar de Tucacas de noche. Las tarjetas con degradado de marca se mantienen. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --brand: #22947a;
+  --brand-2: #17807a;
+  --brand-deep: #0f5a53;
+  --brand-ink: #136a63;
+  --brand-soft: #173a33;
+  --brand-softer: #12302a;
+  --brand-text: #8fe0c6;
+  --sea: #36c2bd;
+  --sun: #f6c158;
+  --sun-soft: #3b2f12;
+  --sun-ink: #f7d488;
+  --coral: #f08a66;
+
+  --ground: #0a1513;
+  --surface: #111f1d;
+  --surface-2: #182a27;
+  --line: #223834;
+  --line-strong: #345049;
+  --ink: #e6f1ee;
+  --ink-2: #bfd3ce;
+  --muted: #8ea9a3;
+
+  --ok: #5fd39a;
+  --ok-soft: #133426;
+  --warn: #f1b45c;
+  --warn-soft: #3a2a12;
+  --bad: #ff8b7b;
+  --bad-soft: #3b1816;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-lift: 0 6px 14px rgba(0, 0, 0, 0.45), 0 20px 44px rgba(0, 0, 0, 0.5);
+}
+
+/* Cambio de tema: un círculo se expande desde el botón (View Transitions); si no hay, fundido */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+.theme-fade,
+.theme-fade *,
+.theme-fade *::before,
+.theme-fade *::after {
+  transition:
+    background-color 360ms ease,
+    color 360ms ease,
+    border-color 360ms ease,
+    box-shadow 360ms ease !important;
+}
+
+/* Botón día / noche */
+.theme-toggle svg {
+  overflow: visible;
+}
+.theme-toggle .sun-core {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 520ms var(--ease-out);
+}
+.theme-toggle .sun-rays {
+  transform-box: view-box;
+  transform-origin: 12px 12px;
+  transition:
+    transform 520ms var(--ease-out),
+    opacity 300ms ease;
+}
+.theme-toggle .moon-bite {
+  transform: translate(9px, -9px);
+  transition: transform 520ms var(--ease-out);
+}
+.theme-toggle.is-dark .sun-core {
+  transform: scale(1.55);
+}
+.theme-toggle.is-dark .sun-rays {
+  transform: rotate(-90deg) scale(0.4);
+  opacity: 0;
+}
+.theme-toggle.is-dark .moon-bite {
+  transform: translate(0, 0);
+}
+.theme-toggle:active svg {
+  transform: scale(0.9);
 }
 
 *,
@@ -200,7 +288,7 @@ textarea {
   align-items: center;
   gap: 9px;
   min-width: 0;
-  color: var(--brand-ink);
+  color: var(--brand-text);
   text-decoration: none;
 }
 .brand-mark {
@@ -392,7 +480,7 @@ textarea {
   height: 23px;
 }
 .tab[aria-current='page'] {
-  color: var(--brand-ink);
+  color: var(--brand-text);
 }
 .tab[aria-current='page'] .tab-icon {
   background: var(--brand-soft);
@@ -491,7 +579,7 @@ textarea {
 }
 .btn-sun {
   background: var(--sun);
-  color: var(--brand-ink);
+  color: #0b3a36;
 }
 .btn-secondary {
   background: var(--surface);
@@ -500,7 +588,7 @@ textarea {
 }
 .btn-soft {
   background: var(--brand-soft);
-  color: var(--brand-ink);
+  color: var(--brand-text);
 }
 .btn-ghost {
   background: transparent;
@@ -793,7 +881,7 @@ textarea {
   border: 0;
   border-radius: 11px;
   background: var(--surface);
-  color: var(--brand-ink);
+  color: var(--brand-text);
   font-size: 1.375rem;
   font-weight: 600;
   cursor: pointer;
@@ -886,7 +974,7 @@ textarea {
 }
 .badge-brand {
   background: var(--brand-soft);
-  color: var(--brand-ink);
+  color: var(--brand-text);
 }
 .badge-sun {
   background: var(--sun-soft);
@@ -996,7 +1084,7 @@ textarea {
   transform: scale(0.97);
 }
 .stay[data-status='tentativa'] {
-  background: color-mix(in srgb, var(--c) 14%, #fff);
+  background: color-mix(in srgb, var(--c) 14%, var(--surface));
   color: var(--ink);
   box-shadow: inset 0 0 0 1.5px var(--c);
   background-image: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--c) 12%, transparent) 6px 12px);
@@ -1335,7 +1423,7 @@ textarea {
 }
 .today-card .btn.solid {
   background: #fff;
-  color: var(--brand-ink);
+  color: #0b3a36;
 }
 
 .stats {
@@ -1398,7 +1486,7 @@ textarea {
   border-radius: var(--radius-lg);
   border: 2px dashed color-mix(in srgb, var(--brand) 45%, var(--line-strong));
   background: var(--brand-softer);
-  color: var(--brand-ink);
+  color: var(--brand-text);
   cursor: pointer;
   transition:
     background-color 160ms ease,
@@ -1462,7 +1550,7 @@ textarea {
   margin-top: 10px;
   border-radius: 10px;
   background: var(--brand-soft);
-  color: var(--brand-ink);
+  color: var(--brand-text);
   font-family: var(--font-display);
   font-weight: 750;
   font-size: 0.9375rem;
@@ -1497,7 +1585,7 @@ textarea {
   padding: 13px 14px;
   border-radius: var(--radius-sm);
   background: var(--brand-soft);
-  color: var(--brand-ink);
+  color: var(--brand-text);
   font-size: 0.9375rem;
   font-weight: 650;
 }
@@ -1683,7 +1771,7 @@ textarea {
 }
 .skeleton {
   border-radius: var(--radius);
-  background: linear-gradient(90deg, var(--surface-2) 0%, #f7faf9 50%, var(--surface-2) 100%);
+  background: linear-gradient(90deg, var(--surface-2) 0%, var(--surface) 50%, var(--surface-2) 100%);
   background-size: 200% 100%;
   animation: shimmer 1.2s linear infinite;
 }
@@ -1990,7 +2078,7 @@ textarea {
 }
 .ops-event.llega {
   background: var(--brand-soft);
-  color: var(--brand-deep);
+  color: var(--brand-text);
 }
 .ops-event.sale {
   background: var(--sun-soft);
@@ -2083,7 +2171,7 @@ textarea {
   gap: 8px;
   min-height: 46px;
   border-top: 1px solid var(--line);
-  color: var(--brand-deep);
+  color: var(--brand-text);
   font-weight: 650;
   text-decoration: none;
 }
@@ -2165,4 +2253,46 @@ button.list-item {
 }
 .share-agenda {
   align-self: flex-start;
+}
+
+/* Accesos: elegir qué puede ver */
+.role-pick {
+  display: grid;
+  gap: 8px;
+}
+.role-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 2px solid var(--line);
+  background: var(--surface);
+  cursor: pointer;
+  transition:
+    border-color 160ms var(--ease-out),
+    background-color 160ms var(--ease-out);
+}
+.role-option input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.role-option .title {
+  font-weight: 700;
+}
+.role-option .sub {
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+.role-option.on {
+  border-color: var(--brand);
+  background: var(--brand-softer);
+}
+.role-option:has(input:focus-visible) {
+  outline: 3px solid color-mix(in srgb, var(--brand) 45%, transparent);
+  outline-offset: 2px;
 }

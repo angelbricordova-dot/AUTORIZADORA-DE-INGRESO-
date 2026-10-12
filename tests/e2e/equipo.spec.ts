@@ -117,3 +117,21 @@ test('estadía nueva con abono en efectivo que recibe Zuleika', async ({ page })
   await page.goto('/admin/zuleika');
   await expect(caja(page)).toHaveText('$348');
 });
+
+test('accesos: dar acceso de administradora y de trabajo', async ({ page }) => {
+  await page.goto('/admin/mas');
+  await page.getByRole('link', { name: /Accesos al panel/ }).click();
+  await expect(page).toHaveURL(/\/admin\/accesos$/);
+  await page.getByRole('radio', { name: /Administradora/ }).check();
+  await page.getByLabel('Nombre').fill('Angélica');
+  await page.getByLabel('Correo').fill('angelica@ejemplo.com');
+  await page.getByRole('button', { name: 'Dar acceso' }).click();
+  const lista = page.getByRole('region', { name: 'Con acceso' });
+  await expect(lista.getByText('angelica@ejemplo.com')).toBeVisible();
+  await expect(lista.getByText('Administradora', { exact: true })).toBeVisible();
+  await page.getByRole('radio', { name: /Trabajo/ }).check();
+  await page.getByLabel('Correo').fill('zuleika@ejemplo.com');
+  await page.getByRole('button', { name: 'Dar acceso' }).click();
+  await expect(lista.getByText('zuleika@ejemplo.com')).toBeVisible();
+  await expect(lista.getByText('Trabajo', { exact: true })).toBeVisible();
+});

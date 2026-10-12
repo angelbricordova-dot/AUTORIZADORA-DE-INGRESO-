@@ -188,6 +188,49 @@ delete from public.team_members;
 select set_config('request.jwt.claim.sub','33333333-3333-3333-3333-333333333333', false);
 select pg_temp.check(public.staff_owner() is null and (select count(*) = 0 from public.stay_ops), 'al quitarla del equipo pierde el acceso');
 
+-- ===== Varias administradoras (v4)
+reset role;
+insert into auth.users values ('44444444-4444-4444-4444-444444444444','angelica@test');
+set role authenticated;
+-- Angélica entró una vez antes de tener acceso: se le creó un apartamento vacío
+select set_config('request.jwt.claim.sub','44444444-4444-4444-4444-444444444444', false);
+insert into public.properties (name, unit) values ('Apartamento N°30','30');
+select pg_temp.check((select count(*) = 1 from public.properties), 'Angélica tenía su panel vacío');
+select pg_temp.check((select role = 'owner' from public.my_workspace()), 'Angélica sin acceso: es dueña de su panel vacío');
+-- Oniris le da acceso de administradora
+select set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111', false);
+select public.add_team_member('ANGELICA@test', 'Angélica', 'admin');
+select pg_temp.check((select count(*) = 1 from public.my_team() where role = 'admin'), 'Oniris ve a Angélica como administradora');
+select pg_temp.expect_error($q$select public.add_team_member('otro@test', 'B', 'jefa')$q$, 'tipo de acceso inválido');
+select set_config('request.jwt.claim.sub','44444444-4444-4444-4444-444444444444', false);
+select pg_temp.check((select owner_id = '11111111-1111-1111-1111-111111111111' and role = 'admin' from public.my_workspace()), 'Angélica pertenece al panel de Oniris');
+select pg_temp.check(public.acting_owner() = '11111111-1111-1111-1111-111111111111', 'acting_owner de Angélica es Oniris');
+select pg_temp.check((select count(*) = 0 from public.properties where name = 'Apartamento N°30' and unit = '30' and owner_id = '44444444-4444-4444-4444-444444444444'), 'se borró su apartamento vacío');
+select pg_temp.check((select count(*) >= 3 from public.reservations), 'Angélica ve las estadías de Oniris');
+select pg_temp.check((select count(*) >= 3 from public.guests), 'Angélica ve las personas (planillas)');
+select pg_temp.check((select count(*) = 2 from public.payments), 'Angélica ve todos los pagos');
+insert into public.reservations (property_id, contact_name, channel, check_in, check_out) values ('aaaaaaaa-0000-0000-0000-000000000001','Cargada por Angélica','whatsapp','2026-12-10','2026-12-12');
+select pg_temp.check((select owner_id = '11111111-1111-1111-1111-111111111111' from public.reservations where contact_name = 'Cargada por Angélica'), 'lo que carga Angélica queda en el panel de Oniris');
+update public.profiles set admin_whatsapp = '0414 111 2233' where id = '11111111-1111-1111-1111-111111111111';
+select pg_temp.check((select admin_whatsapp = '0414 111 2233' from public.profiles where id = '11111111-1111-1111-1111-111111111111'), 'Angélica edita los datos de la planilla del panel');
+select pg_temp.check((select count(*) >= 1 from public.staff_board('2026-10-01','2026-12-31')), 'Angélica ve la agenda de Zuleika');
+select public.add_team_member('zuleika@test', 'Zuleika');
+select pg_temp.check((select count(*) = 2 from public.my_team()), 'Angélica también puede dar accesos');
+-- Zuleika sigue limitada aunque la haya agregado Angélica
+select set_config('request.jwt.claim.sub','33333333-3333-3333-3333-333333333333', false);
+select pg_temp.check(public.staff_owner() = '11111111-1111-1111-1111-111111111111' and public.acting_owner() = '33333333-3333-3333-3333-333333333333', 'Zuleika: trabajo, no administradora');
+select pg_temp.check((select count(*) = 0 from public.reservations), 'Zuleika sigue sin leer estadías');
+select pg_temp.check((select count(*) = 0 from public.my_team()), 'Zuleika no ve el equipo');
+-- otro dueño no ve nada del panel
+select set_config('request.jwt.claim.sub','22222222-2222-2222-2222-222222222222', false);
+select pg_temp.check((select count(*) = 0 from public.reservations where contact_name = 'Cargada por Angélica'), 'B no ve lo del panel de Oniris');
+select pg_temp.expect_error($q$select public.add_team_member('angelica@test', 'X', 'admin')$q$, 'B no puede robarse a Angélica');
+-- al quitarle el acceso, Angélica vuelve a su panel vacío
+select set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111', false);
+delete from public.team_members where member_id = '44444444-4444-4444-4444-444444444444';
+select set_config('request.jwt.claim.sub','44444444-4444-4444-4444-444444444444', false);
+select pg_temp.check((select count(*) = 0 from public.reservations), 'sin acceso, Angélica ya no ve nada');
+
 reset role;
 set role anon;
 select set_config('request.jwt.claim.sub','', false);

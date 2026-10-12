@@ -23,7 +23,9 @@ Phase 1: stop losing time filling the conjunto's entry-authorization form by han
 
 Success: an authorization goes from "guest sent photos" to "sent to the administradora" in under two minutes, with no retyping, and Oniris always knows who is entering, when, and what is still pending or unpaid.
 
-Public page (main surface, built): "Tu Día en Tucacas", the N°30's own website. Shows price, amenities, photos and real availability; guests pick dates and book via WhatsApp (584242703482). If the dates are taken, it offers partner apartments of the same conjunto that are free on those dates; the partner sets a nightly price and the page sells it with a markup (example: partner $100 → offered at $120, $20 commission). The admin panel lives inside the same app at /admin.
+Public site (main surface, built): a lobby at `/` that presents the brand and searches dates across all apartments, and one page per apartment at `/apartamento/:unit`. No visible link to the admin panel. Light and dark themes.
+Admin access (built): several administrators (Oniris, Angélica, Angel) share one panel; Zuleika has a work-only role.
+Previously: "Tu Día en Tucacas", the N°30's own website. Shows price, amenities, photos and real availability; guests pick dates and book via WhatsApp (584242703482). If the dates are taken, it offers partner apartments of the same conjunto that are free on those dates; the partner sets a nightly price and the page sells it with a markup (example: partner $100 → offered at $120, $20 commission). The admin panel lives inside the same app at /admin.
 
 Operations (built): per-stay payments with method (cash USD, pago móvil, transfer, Zelle, Binance, Bs cash, POS) and receiver; Zuleika's task checklist per arrival/departure; guarantee deposits held and returned (retained damage money goes to the cash box); a running cash balance with a "worth collecting" threshold.
 

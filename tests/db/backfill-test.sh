@@ -27,3 +27,7 @@ P=$($PSQL -At -c "select paid_usd || '/' || (select count(*) from public.payment
 [ "$P" = "150.00/1" ] && echo "PAGOS ANTERIORES CONSERVADOS: OK" || { echo "FALLA pagos: $P"; exit 1; }
 F=$($PSQL -At -c "set role anon; select cardinality(photos) || '/' || bedrooms || '/' || beds || '/' || bathrooms from public.public_listings();")
 [ "$F" = "12/2/5/2" ] && echo "FOTOS Y DATOS DEL N°30: OK" || { echo "FALLA fotos: $F"; exit 1; }
+# v4: varias administradoras; la dueña sigue viendo todo lo suyo
+$PSQL -f "$ROOT/supabase/migrations/20261014000000_varias_administradoras.sql"
+V=$($PSQL -At -c "set role authenticated; select set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111', false) is not null; select count(*) || '/' || (select count(*) from public.payments) from public.reservations;" | tail -1)
+[ "$V" = "1/1" ] && echo "LA DUEÑA CONSERVA SUS DATOS: OK" || { echo "FALLA dueña: $V"; exit 1; }

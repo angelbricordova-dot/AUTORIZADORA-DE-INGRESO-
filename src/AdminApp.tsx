@@ -10,6 +10,7 @@ import { Ctx, type AppCtx } from './context';
 import { href, useRoute } from './router';
 import { Icon, type IconName } from './components/Icon';
 import { LogoMark } from './components/Logo';
+import { ThemeToggle } from './components/ThemeToggle';
 import { HomePage } from './pages/Home';
 import { CalendarPage } from './pages/Calendar';
 import { ReservationsPage } from './pages/Reservations';
@@ -21,6 +22,7 @@ import { MorePage } from './pages/More';
 import { LoginPage } from './pages/Login';
 import { StaffPreviewPage, TeamPage } from './pages/Team';
 import { StaffApp } from './StaffApp';
+import { AccessPage } from './pages/Access';
 
 export function AdminApp() {
   const [session, setSession] = useState<Session | null>(null);
@@ -35,6 +37,8 @@ export function AdminApp() {
     }
     meta.setAttribute('content', 'noindex, nofollow');
     document.title = 'Panel · Tu Día en Tucacas';
+    // al instalar el panel en el teléfono, que abra directo en el panel
+    document.querySelector('link[rel="manifest"]')?.setAttribute('href', '/panel.webmanifest');
   }, []);
 
   useEffect(() => {
@@ -71,7 +75,7 @@ const TABS: { to: string; label: string; icon: IconName; match: string[] }[] = [
   { to: '/', label: 'Inicio', icon: 'home', match: ['', 'zuleika'] },
   { to: '/calendario', label: 'Calendario', icon: 'calendar', match: ['calendario'] },
   { to: '/reservas', label: 'Estadías', icon: 'list', match: ['reservas', 'reserva'] },
-  { to: '/mas', label: 'Más', icon: 'more', match: ['mas', 'ajustes', 'apartamentos', 'apartamento'] },
+  { to: '/mas', label: 'Más', icon: 'more', match: ['mas', 'ajustes', 'apartamentos', 'apartamento', 'accesos'] },
 ];
 
 function useScrolled() {
@@ -148,6 +152,7 @@ function Shell() {
     else if (first === 'apartamento') page = <PropertyForm key={second} id={second === 'nuevo' ? undefined : second} />;
     else if (first === 'ajustes') page = <SettingsPage />;
     else if (first === 'mas') page = <MorePage />;
+    else if (first === 'accesos') page = <AccessPage />;
     else if (first === 'zuleika' && second === 'vista') page = <StaffPreviewPage />;
     else if (first === 'zuleika') page = <TeamPage />;
     else page = <NotFound />;
@@ -172,6 +177,7 @@ function Shell() {
               Demo
             </span>
           ) : null}
+          <ThemeToggle className="flat" />
           <a className="icon-btn flat" href="/" aria-label="Ver la página pública">
             <Icon name="eye" />
           </a>

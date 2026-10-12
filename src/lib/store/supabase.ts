@@ -108,6 +108,17 @@ async function loadProperties(sb: SupabaseClient): Promise<Property[]> {
 }
 
 const num = (v: unknown) => Number(v) || 0;
+
+/**
+ * Panel al que pertenece quien entró: el suyo, o el de la dueña si es administradora.
+ * Sin la migración de varias administradoras, es siempre el propio.
+ */
+async function ownerId(sb: SupabaseClient): Promise<string> {
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) throw new Error('Tu sesión venció. Vuelve a entrar.');
+  const { data, error } = await sb.rpc('acting_owner');
+  return !error && typeof data === 'string' ? data : auth.user.id;
+}
 const PAY_COLUMNS = 'id, reservation_id, amount_usd, method, received_by, paid_on, reference, note';
 const OPS_COLUMNS =
   'reservation_id, clean_before_at, keys_at, clean_after_at, linens_at, deposit_usd, deposit_received_at, deposit_returned_at, deposit_returned_usd, note';
@@ -148,17 +159,18 @@ export const supabaseStore: DataStore = {
   mode: 'supabase',
   async load(): Promise<AppData> {
     const sb = getSupabase();
+    const owner = await ownerId(sb);
     const properties = await loadProperties(sb);
     const own = properties.find((p) => p.kind === 'propio') ?? properties[0];
     const [profileRes, { data: rows, error: re }, ops, team] = await Promise.all([
-      sb.from('profiles').select('full_name, cedula, admin_whatsapp, staff_name, cash_alert_usd, deposit_usd').maybeSingle(),
+      sb.from('profiles').select('full_name, cedula, admin_whatsapp, staff_name, cash_alert_usd, deposit_usd').eq('id', owner).maybeSingle(),
       sb.from('reservations').select(RES_COLUMNS).order('check_in'),
       loadOps(sb),
       sb.rpc('my_team'),
     ]);
     let profile = profileRes.data as Record<string, unknown> | null;
     if (missingSchema(profileRes.error)) {
-      const old = await sb.from('profiles').select('full_name, cedula, admin_whatsapp').maybeSingle();
+      const old = await sb.from('profiles').select('full_name, cedula, admin_whatsapp').eq('id', owner).maybeSingle();
       if (old.error) throw friendlyError(old.error);
       profile = old.data as Record<string, unknown> | null;
     } else if (profileRes.error) throw friendlyError(profileRes.error);
@@ -179,15 +191,14 @@ export const supabaseStore: DataStore = {
       payments: ops.payments,
       ops: ops.ops,
       cash: ops.cash,
-      team: team.error ? [] : ((team.data ?? []) as TeamMember[]),
+      team: team.error ? [] : ((team.data ?? []) as TeamMember[]).map((m) => ({ ...m, role: m.role === 'admin' ? 'admin' : 'staff' })),
       migrationPending: ops.pending || schemaV3 === false,
     };
   },
 
   async saveSettings(s) {
     const sb = getSupabase();
-    const { data: auth } = await sb.auth.getUser();
-    if (!auth.user) throw new Error('Tu sesión venció. Vuelve a entrar.');
+    const owner = await ownerId(sb);
     const id = await ownId(sb);
     const cedulaDigits = formatCedula(s.owner_cedula).replace(/[^0-9.]/g, '');
     const [{ error: e1 }, { error: e2 }] = await Promise.all([
@@ -205,7 +216,7 @@ export const supabaseStore: DataStore = {
                 deposit_usd: Math.max(0, Math.min(10000, Math.round(Number(s.deposit_usd) || 0))),
               }),
         })
-        .eq('id', auth.user.id),
+        .eq('id', owner),
       sb.from('properties').update({ conjunto: cleanText(s.conjunto, 80), unit: cleanText(s.unit, 20) }).eq('id', id),
     ]);
     if (e1) throw friendlyError(e1);
@@ -289,9 +300,7 @@ export const supabaseStore: DataStore = {
 
   async uploadPhoto(propertyId, jpeg) {
     const sb = getSupabase();
-    const { data: auth } = await sb.auth.getUser();
-    if (!auth.user) throw new Error('Tu sesión venció. Vuelve a entrar.');
-    const path = `${auth.user.id}/${propertyId}/${crypto.randomUUID()}.jpg`;
+    const path = `${await ownerId(sb)}/${propertyId}/${crypto.randomUUID()}.jpg`;
     const { error } = await sb.storage.from('fotos').upload(path, jpeg, { contentType: 'image/jpeg', upsert: false, cacheControl: '31536000' });
     if (error) throw new Error('No se pudo subir la foto. ¿Ejecutaste la migración de fotos en Supabase?');
     return sb.storage.from('fotos').getPublicUrl(path).data.publicUrl;
@@ -338,9 +347,10 @@ export const supabaseStore: DataStore = {
     if (error) throw friendlyError(error);
   },
 
-  async addTeamMember(email, name) {
-    const { error } = await getSupabase().rpc('add_team_member', { p_email: cleanText(email, 200), p_name: cleanText(name, 40) });
+  async addTeamMember(email, name, role) {
+    const { error } = await getSupabase().rpc('add_team_member', { p_email: cleanText(email, 200), p_name: cleanText(name, 40), p_role: role });
     if (error) {
+      if (error.code === 'PGRST202') throw new Error('Falta ejecutar en Supabase la migración 20261014000000_varias_administradoras.sql.');
       // los mensajes de esta función están pensados para Oniris
       if (['P0002', '22023', '42501'].includes(error.code ?? '')) throw new Error(error.message);
       throw friendlyError(error);
@@ -356,8 +366,13 @@ export const supabaseStore: DataStore = {
     const sb = getSupabase();
     const { data: auth } = await sb.auth.getUser();
     if (!auth.user) return null;
-    const { data, error } = await sb.from('team_members').select('name, owner_id').eq('member_id', auth.user.id).maybeSingle();
+    const q = (cols: string) => sb.from('team_members').select(cols).eq('member_id', auth.user!.id).maybeSingle();
+    let res = await q('name, role');
+    if (missingSchema(res.error)) res = await q('name');
+    const { data, error } = res as { data: { name: string; role?: string } | null; error: unknown };
     if (error || !data) return null;
+    // las administradoras ven el panel completo; solo "trabajo" ve el panel de Zuleika
+    if ((data as { role?: string }).role === 'admin') return null;
     return { name: data.name as string };
   },
 

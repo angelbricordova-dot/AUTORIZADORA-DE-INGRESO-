@@ -52,7 +52,16 @@ export function TeamPage() {
         extra={
           <>
             <TeamSettings />
-            <TeamAccess />
+            <a className="panel staff-link" href={href('/accesos')}>
+              <span className="lead-icon lead-brand">
+                <Icon name="user" />
+              </span>
+              <span className="grow">
+                <span className="title">Acceso de {name} a su panel</span>
+                <span className="sub">Se da en Más → Accesos al panel</span>
+              </span>
+              <Icon name="chevronRight" className="chev" />
+            </a>
           </>
         }
       />
@@ -151,97 +160,6 @@ function TeamSettings() {
           {saving ? <span className="spinner" /> : <Icon name="check" />} Guardar
         </button>
       </form>
-    </details>
-  );
-}
-
-function TeamAccess() {
-  const { data, store, reload } = useApp();
-  const toast = useToast();
-  const [email, setEmail] = useState('');
-  const [saving, setSaving] = useState(false);
-  const name = data.settings.staff_name || 'Zuleika';
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      await store.addTeamMember(email, name);
-      await reload();
-      setEmail('');
-      toast(`${name} ya puede entrar con su correo`);
-    } catch (err) {
-      toast((err as Error).message, 'bad');
-    } finally {
-      setSaving(false);
-    }
-  }
-  return (
-    <details className="disclosure">
-      <summary>
-        <Icon name="user" style={{ width: 20, height: 20, color: 'var(--brand)' }} />
-        Acceso de {name} a su panel
-        <Icon name="chevronRight" className="chev" />
-      </summary>
-      <div className="disclosure-body">
-        {data.team.length ? (
-          <div className="panel list">
-            {data.team.map((m) => (
-              <div key={m.member_id} className="list-item">
-                <span className="lead-icon lead-ok">
-                  <Icon name="user" />
-                </span>
-                <span className="grow">
-                  <span className="title">{m.name}</span>
-                  <span className="sub">{m.email}</span>
-                </span>
-                <button
-                  className="icon-btn flat"
-                  type="button"
-                  aria-label={`Quitar el acceso de ${m.name}`}
-                  onClick={async () => {
-                    if (!window.confirm(`¿Quitarle el acceso a ${m.name}? Ya no podrá ver su panel.`)) return;
-                    try {
-                      await store.removeTeamMember(m.member_id);
-                      await reload();
-                      toast('Acceso quitado');
-                    } catch (err) {
-                      toast((err as Error).message, 'bad');
-                    }
-                  }}
-                >
-                  <Icon name="trash" />
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : null}
-        <p className="small muted">
-          {name} entra en esta misma dirección (/admin) con su propio correo y contraseña. Solo ve las entradas y salidas, sus tareas, las garantías y la caja:
-          nunca cédulas, placas, notas ni lo que cobran los aliados.
-        </p>
-        <ol className="steps small">
-          <li>En Supabase → Authentication → Users → Add user, crea su usuario (marca “Auto Confirm User”).</li>
-          <li>Escribe aquí ese mismo correo y toca “Dar acceso”.</li>
-        </ol>
-        <form className="row" onSubmit={onSubmit}>
-          <label htmlFor="team-email" className="visually-hidden">
-            Correo de {name}
-          </label>
-          <input
-            id="team-email"
-            className="input grow"
-            type="email"
-            inputMode="email"
-            autoComplete="off"
-            placeholder="correo@ejemplo.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <button className="btn btn-primary" type="submit" disabled={saving || !email.includes('@')}>
-            {saving ? <span className="spinner" /> : null} Dar acceso
-          </button>
-        </form>
-      </div>
     </details>
   );
 }

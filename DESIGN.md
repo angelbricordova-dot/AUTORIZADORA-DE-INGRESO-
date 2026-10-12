@@ -151,6 +151,7 @@ Rounded and friendly: inputs 12px, buttons 14px, panels 16px, hero and today car
 - **Switch** for publish / hide; **stepper** for guests (and for "¿cuántos son niños?" when a group is larger than the apartment).
 - **Cash card** (`.cash-card`): deep brand gradient, the cash Zuleika holds as the big number, a thin meter toward the "worth collecting" threshold that turns sun-yellow when reached; actions are a sun button (withdraw) and a glass button (expense).
 - **Ops card** (`.ops-card`): one arrival ("Llega", brand pill) or departure ("Se va", sun pill) with a done count and a checklist of 52px task rows; each row is a `role="checkbox"` button whose icon box fills green when done. Phone call strip at the bottom.
+- **Lobby** (public `/`): tall brand-gradient hero with the drawn logo, headline "Tu día en Tucacas empieza aquí", date search card (dates in a bottom sheet, all apartments at once), featured N°30 card with a slow Ken Burns photo, 3 numbered steps, Tucacas cards and a WhatsApp contact card.
 - **Photo mosaic + lightbox** (public): one wide tile and four small ones, the last showing "+N"; tapping any photo opens a full-screen swipeable viewer with a counter. The hero carousel shows a "1 / 12" pill.
 
 ## Do's and Don'ts
@@ -161,4 +162,5 @@ Rounded and friendly: inputs 12px, buttons 14px, panels 16px, hero and today car
 - Do keep Zuleika's view to work data only: dates, contact, people count, amount to collect.
 - Don't put eyebrows above headings or use offset block shadows.
 - Don't use the display face for long text.
-- Don't add a dark theme by default; the scene is outdoor daylight.
+- Dark theme ("noche en Tucacas"): follows the phone by default, toggled with the sun/moon button; switching reveals the new theme as a circle growing from the button (View Transitions), with a cross-fade fallback. Brand gradient cards (hero, today card, cash card) stay the same in both themes; text on soft brand backgrounds uses `--brand-text`.
+- Motion: the lobby logo draws itself stroke by stroke and then fills; sun rises; waves loop slowly; highlights marquee; sections rise in as they enter the viewport; prices count up; amenities expand with a staggered reveal. Everything stops under `prefers-reduced-motion`.

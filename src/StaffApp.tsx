@@ -7,6 +7,7 @@ import { todayISO } from './lib/dates';
 import { Icon } from './components/Icon';
 import { LogoMark } from './components/Logo';
 import { OpsBoard } from './components/Ops';
+import { ThemeToggle } from './components/ThemeToggle';
 
 export function StaffApp({ name }: { name: string }) {
   const today = todayISO();
@@ -41,6 +42,7 @@ export function StaffApp({ name }: { name: string }) {
             </span>
           </span>
           <span className="grow" />
+          <ThemeToggle className="flat" />
           <button className="icon-btn flat" type="button" aria-label="Cerrar sesión" onClick={() => getSupabase().auth.signOut()}>
             <Icon name="logout" />
           </button>
