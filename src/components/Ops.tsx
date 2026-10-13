@@ -66,6 +66,7 @@ export function OpsBoard({
   const [payFor, setPayFor] = useState<StaffStay | null>(null);
   const [depositFor, setDepositFor] = useState<{ item: AgendaItem; mode: 'in' | 'out' } | null>(null);
   const [cashKind, setCashKind] = useState<CashKind | null>(null);
+  const [incomeOpen, setIncomeOpen] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
   const balance = cashBalance(data.payments, data.ops, data.cash);
@@ -133,6 +134,7 @@ export function OpsBoard({
         heldTotal={heldTotal}
         onWithdraw={view === 'owner' ? () => setCashKind('retiro') : undefined}
         onExpense={() => setCashKind('gasto')}
+        onIncome={() => setIncomeOpen(true)}
       />
 
       {plan.overdue.length ? (
@@ -263,6 +265,24 @@ export function OpsBoard({
         onClose={() => setDepositFor(null)}
         onSave={(patch) => run('dep', () => saveOps(depositFor!.item, patch), depositFor?.mode === 'in' ? 'Garantía recibida' : 'Garantía devuelta')}
       />
+      <IncomeSheet
+        open={incomeOpen}
+        view={view}
+        name={name}
+        stays={data.stays}
+        today={today}
+        onClose={() => setIncomeOpen(false)}
+        onSave={(r) =>
+          run(
+            'income',
+            () =>
+              r.type === 'stay'
+                ? store.addPayment({ reservation_id: r.stayId, amount_usd: r.amount, method: 'efectivo_usd', received_by: 'staff', paid_on: r.date, reference: '', note: r.reason })
+                : store.addCash({ kind: 'ingreso', amount_usd: r.amount, happened_on: r.date, note: r.reason ? `${r.name} · ${r.reason}` : r.name }),
+            `Anotado: ${formatUSD(r.amount)} en la caja`,
+          )
+        }
+      />
       <CashSheet
         kind={cashKind}
         today={today}
@@ -285,6 +305,7 @@ function CashCard({
   heldTotal,
   onWithdraw,
   onExpense,
+  onIncome,
 }: {
   name: string;
   view: View;
@@ -293,6 +314,7 @@ function CashCard({
   heldTotal: number;
   onWithdraw?: () => void;
   onExpense: () => void;
+  onIncome: () => void;
 }) {
   return (
     <section className={`cash-card ${hint.ready ? 'ready' : ''}`} aria-labelledby="h-caja">
@@ -320,6 +342,9 @@ function CashCard({
         </span>
       ) : null}
       <div className="actions">
+        <button className={`btn btn-small ${view === 'staff' ? 'btn-sun' : 'btn-glass'}`} type="button" onClick={onIncome}>
+          <Icon name="plus" /> {view === 'staff' ? 'Recibí efectivo' : 'Efectivo recibido'}
+        </button>
         {onWithdraw ? (
           <button className="btn btn-sun btn-small" type="button" onClick={onWithdraw} disabled={balance <= 0}>
             <Icon name="wallet" /> Registrar retiro
@@ -675,6 +700,144 @@ function CashForm({ kind, today, balance, onClose, onSave }: { kind: CashKind; t
       </div>
       <button className="btn btn-primary btn-block" type="submit" disabled={saving || !(value > 0) || (kind === 'gasto' && !note.trim())}>
         {saving ? <span className="spinner" /> : <Icon name="check" />} {kind === 'retiro' ? 'Anotar retiro' : 'Anotar gasto'}
+      </button>
+    </form>
+  );
+}
+
+// ---------------------------------------------------------------------
+// Recibí efectivo: de un huésped de la agenda (cuenta como pago de su estadía)
+// o de otra persona (queda en la caja con su nombre)
+// ---------------------------------------------------------------------
+type IncomeInput = { amount: number; date: string; reason: string } & ({ type: 'stay'; stayId: string } | { type: 'other'; name: string });
+
+function IncomeSheet({
+  open,
+  view,
+  name,
+  stays,
+  today,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  view: View;
+  name: string;
+  stays: StaffStay[];
+  today: string;
+  onClose: () => void;
+  onSave: (r: IncomeInput) => Promise<boolean>;
+}) {
+  return (
+    <BottomSheet open={open} onClose={onClose} label="Recibí efectivo">
+      {open ? <IncomeForm view={view} name={name} stays={stays} today={today} onClose={onClose} onSave={onSave} /> : null}
+    </BottomSheet>
+  );
+}
+
+/** Huéspedes que pueden estar entregando efectivo: los que llegan pronto, están o se fueron hace poco. */
+export function incomeCandidates(stays: StaffStay[], today: string): StaffStay[] {
+  const from = addDays(today, -10);
+  const to = addDays(today, 30);
+  const dist = (s: StaffStay) => Math.abs(Date.parse(s.check_in) - Date.parse(today));
+  return stays
+    .filter((s) => s.status !== 'cancelada' && s.check_out >= from && s.check_in <= to)
+    .sort((a, b) => dist(a) - dist(b))
+    .slice(0, 6);
+}
+
+function IncomeForm({
+  view,
+  name,
+  stays,
+  today,
+  onClose,
+  onSave,
+}: {
+  view: View;
+  name: string;
+  stays: StaffStay[];
+  today: string;
+  onClose: () => void;
+  onSave: (r: IncomeInput) => Promise<boolean>;
+}) {
+  const options = useMemo(() => incomeCandidates(stays, today), [stays, today]);
+  // nadie marcado de entrada: que Zuleika elija a conciencia de quién es el dinero
+  const [who, setWho] = useState<string>('');
+  const [amount, setAmount] = useState('');
+  const [other, setOther] = useState('');
+  const [reason, setReason] = useState('');
+  const [date, setDate] = useState(today);
+  const [saving, setSaving] = useState(false);
+  const value = parseMoney(amount);
+  const stay = options.find((s) => s.id === who);
+  const due = stay ? balanceDue(stay) : 0;
+  const when = (s: StaffStay) =>
+    s.check_in > today ? `llega ${formatDayMonth(s.check_in)}` : s.check_out < today ? `se fue ${formatDayMonth(s.check_out)}` : `hasta ${formatDayMonth(s.check_out)}`;
+  const isOther = who === 'otra';
+  const ready = value > 0 && (!!stay || (isOther && other.trim().length >= 2));
+  return (
+    <form
+      className="stack"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!ready) return;
+        setSaving(true);
+        const base = { amount: value, date, reason: reason.trim() };
+        const ok = await onSave(stay ? { ...base, type: 'stay', stayId: stay.id } : { ...base, type: 'other', name: other.trim() });
+        setSaving(false);
+        if (ok) onClose();
+      }}
+    >
+      <h2>Recibí efectivo</h2>
+      <p className="muted small">
+        {view === 'staff'
+          ? 'Dólares en efectivo que te entregaron para Oniris. Se suman a lo que guardas.'
+          : `Dólares en efectivo que le entregaron a ${name}. Se suman a lo que guarda.`}
+      </p>
+      <div className="field">
+        <label htmlFor="inc-amount">Monto en dólares</label>
+        <input id="inc-amount" className="input input-big" inputMode="decimal" autoComplete="off" value={amount} onChange={(e) => setAmount(e.target.value)} />
+      </div>
+      <div className="field">
+        <span className="field-label" id="lbl-entrego">
+          ¿Quién te lo entregó?
+        </span>
+        <div className="segmented wrap" role="radiogroup" aria-labelledby="lbl-entrego">
+          {options.map((s) => (
+            <label key={s.id} className="chip">
+              <input type="radio" name="inc-who" checked={who === s.id} onChange={() => setWho(s.id)} />
+              <span>
+                {s.contact_name} <span className="tiny muted">· {when(s)}</span>
+              </span>
+            </label>
+          ))}
+          <label className="chip">
+            <input type="radio" name="inc-who" checked={isOther} onChange={() => setWho('otra')} />
+            <span>Otra persona</span>
+          </label>
+        </div>
+        {stay ? (
+          <span className="hint">{due > 0 ? `Se anota como pago de su estadía (le falta ${formatUSD(due)}).` : 'Se anota como pago de su estadía.'}</span>
+        ) : null}
+      </div>
+      {isOther ? (
+        <div className="field">
+          <label htmlFor="inc-name">Nombre de quien lo entregó</label>
+          <input id="inc-name" className="input" maxLength={60} autoComplete="off" placeholder="Ej: María González" value={other} onChange={(e) => setOther(e.target.value)} />
+        </div>
+      ) : null}
+      <div className="field">
+        <label htmlFor="inc-reason">¿Por qué? (opcional)</label>
+        <input id="inc-reason" className="input" maxLength={120} autoComplete="off" placeholder="Ej: saldo de la estadía, adelanto" value={reason} onChange={(e) => setReason(e.target.value)} />
+      </div>
+      <div className="field">
+        <label htmlFor="inc-date">Fecha</label>
+        <input id="inc-date" className="input" type="date" value={date} max={today} onChange={(e) => setDate(e.target.value)} />
+      </div>
+      <button className="btn btn-primary btn-block" type="submit" disabled={saving || !ready}>
+        {saving ? <span className="spinner" /> : <Icon name="check" />} Anotar {value > 0 ? formatUSD(value) : 'efectivo'} recibido
       </button>
     </form>
   );

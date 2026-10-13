@@ -120,11 +120,12 @@ export function sanitizePayment(p: PaymentInput): PaymentInput {
 
 export function sanitizeCash(m: CashInput): CashInput {
   const out: CashInput = { kind: m.kind, amount_usd: money2(m.amount_usd), happened_on: m.happened_on, note: cleanText(m.note, 200) };
-  if (!['retiro', 'gasto', 'ajuste'].includes(out.kind)) throw new Error('Movimiento inválido.');
+  if (!['retiro', 'gasto', 'ajuste', 'ingreso'].includes(out.kind)) throw new Error('Movimiento inválido.');
   if (out.kind !== 'ajuste') out.amount_usd = Math.abs(out.amount_usd);
   if (!out.amount_usd || Math.abs(out.amount_usd) > 100000) throw new Error('Escribe un monto.');
   if (!isValidISO(out.happened_on)) throw new Error('Revisa la fecha.');
   if (out.kind === 'gasto' && !out.note) throw new Error('Escribe en qué se gastó.');
+  if (out.kind === 'ingreso' && out.note.length < 2) throw new Error('Escribe quién te entregó el efectivo.');
   return out;
 }
 

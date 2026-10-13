@@ -172,3 +172,38 @@ test('avisos: el panel genera las llaves en el navegador sin mostrar la clave en
   expect(sql).toMatch(/insert into public\.app_secrets .*'[0-9a-f]{64}'/s);
   expect(sql).not.toContain(secret);
 });
+
+test('Zuleika anota efectivo que le entregó otra persona y Oniris lo ve en su panel', async ({ page }) => {
+  await page.goto('/trabajo');
+  await expect(caja(page)).toHaveText('$248');
+  await page.getByRole('button', { name: 'Recibí efectivo' }).click();
+  const hoja = page.getByRole('dialog', { name: 'Recibí efectivo' });
+  await hoja.getByLabel('Monto en dólares').fill('50');
+  // nadie viene marcado: hay que elegir de quién es el dinero
+  await expect(hoja.getByRole('button', { name: 'Anotar $50 recibido' })).toBeDisabled();
+  await hoja.getByRole('radio', { name: 'Otra persona' }).check();
+  // sin el nombre no se puede anotar
+  await expect(hoja.getByRole('button', { name: 'Anotar $50 recibido' })).toBeDisabled();
+  await hoja.getByLabel('Nombre de quien lo entregó').fill('María González');
+  await hoja.getByLabel('¿Por qué? (opcional)').fill('adelanto');
+  await hoja.getByRole('button', { name: 'Anotar $50 recibido' }).click();
+  await expect(caja(page)).toHaveText('$298');
+  await page.getByText('Movimientos de la caja').click();
+  await expect(page.locator('.ledger-row').first()).toContainText('Efectivo recibido');
+  await expect(page.locator('.ledger-row').first()).toContainText('María González · adelanto');
+  // Oniris ve lo mismo en su panel
+  await page.goto('/admin');
+  await expect(page.getByRole('link', { name: /Zuleika guarda \$298/ })).toBeVisible();
+});
+
+test('efectivo recibido de un huésped de la agenda cuenta como pago de su estadía', async ({ page }) => {
+  await page.goto('/admin/zuleika/vista');
+  await page.getByRole('button', { name: 'Recibí efectivo' }).click();
+  const hoja = page.getByRole('dialog', { name: 'Recibí efectivo' });
+  await hoja.getByRole('radio', { name: /Grupo Rodríguez/ }).check();
+  await expect(hoja.getByText('le falta $240')).toBeVisible();
+  await hoja.getByLabel('Monto en dólares').fill('100');
+  await hoja.getByRole('button', { name: 'Anotar $100 recibido' }).click();
+  await expect(caja(page)).toHaveText('$348');
+  await expect(tarjeta(page, /^Llega Grupo Rodríguez/).getByRole('checkbox', { name: /Cobrar el saldo: \$140/ })).toBeVisible();
+});

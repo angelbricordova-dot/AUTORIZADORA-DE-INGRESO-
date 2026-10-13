@@ -273,11 +273,11 @@ export interface StayOps {
 }
 export type StayOpsPatch = Partial<Omit<StayOps, 'reservation_id'>>;
 
-export type CashKind = 'retiro' | 'gasto' | 'ajuste';
+export type CashKind = 'retiro' | 'gasto' | 'ajuste' | 'ingreso';
 export interface CashMovement {
   id: string;
   kind: CashKind;
-  /** retiro y gasto son positivos y restan; ajuste suma o resta según el signo */
+  /** retiro y gasto son positivos y restan; ingreso (efectivo que le entregaron) suma; ajuste suma o resta según el signo */
   amount_usd: number;
   happened_on: string;
   note: string;

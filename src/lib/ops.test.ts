@@ -39,6 +39,13 @@ describe('caja de Zuleika', () => {
     expect(l.find((e) => e.kind === 'garantia')).toMatchObject({ amount: 30, detail: 'Vaso roto' });
   });
 
+  it('efectivo que le entregaron a Zuleika suma a la caja y dice de quién', () => {
+    const extra: CashMovement[] = [...cash, { id: 'c4', kind: 'ingreso', amount_usd: 60, happened_on: '2026-10-13', note: 'María González · adelanto' }];
+    expect(cashBalance(payments, ops, extra)).toBe(150 + 90 + 30 - 15 - 100 - 5 + 60);
+    const l = cashLedger(payments, ops, extra, []);
+    expect(l[0]).toMatchObject({ kind: 'ingreso', label: 'Efectivo recibido', detail: 'María González · adelanto', amount: 60, balance: 210 });
+  });
+
   it('garantías en su poder y cuáles ya toca devolver', () => {
     const held = depositsHeld([stay('a', '2026-10-09', '2026-10-11'), stay('b', '2026-10-12', '2026-10-14')], ops, '2026-10-14');
     expect(held).toHaveLength(1);

@@ -164,7 +164,12 @@ update public.stay_ops set deposit_returned_at = now(), deposit_returned_usd = 8
 select pg_temp.expect_error($q$update public.stay_ops set deposit_returned_usd = 150 where reservation_id = 'bbbbbbbb-0000-0000-0000-000000000001'$q$, 'devolver más de la garantía');
 insert into public.cash_movements (kind, amount_usd, note) values ('gasto', 12, 'Detergente');
 select pg_temp.expect_error($q$insert into public.cash_movements (kind, amount_usd) values ('retiro', 10)$q$, 'Zuleika no anota retiros');
-select pg_temp.check((select count(*) = 2 from public.cash_movements), 'Zuleika ve la caja');
+insert into public.cash_movements (kind, amount_usd, note) values ('ingreso', 40, 'Pedro Pérez · adelanto');
+select pg_temp.expect_error($q$insert into public.cash_movements (kind, amount_usd, note) values ('ingreso', 40, '')$q$, 'efectivo recibido sin decir de quién');
+select pg_temp.expect_error($q$insert into public.cash_movements (kind, amount_usd, note) values ('ingreso', -40, 'Pedro')$q$, 'efectivo recibido negativo');
+select pg_temp.expect_error($q$insert into public.cash_movements (kind, amount_usd) values ('ajuste', 10)$q$, 'Zuleika no hace ajustes');
+select pg_temp.check((select count(*) = 3 from public.cash_movements), 'Zuleika ve la caja');
+select pg_temp.check((select created_by = '33333333-3333-3333-3333-333333333333' from public.cash_movements where kind = 'ingreso'), 'el efectivo recibido queda a nombre de Zuleika');
 -- no puede crear nada propio ni tocar planillas
 select pg_temp.expect_error($q$insert into public.properties (name, unit) values ('Mío','99')$q$, 'equipo no crea apartamentos');
 select pg_temp.expect_error($q$insert into public.guests (reservation_id, position, full_name, cedula) values ('bbbbbbbb-0000-0000-0000-000000000001',6,'X','9.999.999')$q$, 'equipo no agrega personas');

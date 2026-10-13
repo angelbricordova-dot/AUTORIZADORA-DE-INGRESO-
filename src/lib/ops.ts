@@ -31,11 +31,17 @@ export function retainedDeposit(o: StayOps): number {
   return round(Math.max(0, o.deposit_usd - (o.deposit_returned_usd ?? o.deposit_usd)));
 }
 
+/** Cuánto mueve la caja un movimiento: ingreso suma, retiro y gasto restan, ajuste según su signo. */
+export function cashSign(m: Pick<CashMovement, 'kind' | 'amount_usd'>): number {
+  if (m.kind === 'ajuste') return m.amount_usd;
+  return m.kind === 'ingreso' ? Math.abs(m.amount_usd) : -Math.abs(m.amount_usd);
+}
+
 /** Efectivo en dólares que tiene guardado el equipo. */
 export function cashBalance(payments: Payment[], ops: StayOps[], cash: CashMovement[]): number {
   const cobros = payments.filter((p) => p.method === 'efectivo_usd' && p.received_by === 'staff').reduce((s, p) => s + p.amount_usd, 0);
   const retenido = ops.reduce((s, o) => s + retainedDeposit(o), 0);
-  const movimientos = cash.reduce((s, m) => s + (m.kind === 'ajuste' ? m.amount_usd : -Math.abs(m.amount_usd)), 0);
+  const movimientos = cash.reduce((s, m) => s + cashSign(m), 0);
   return round(cobros + retenido + movimientos);
 }
 
@@ -59,7 +65,7 @@ export function depositsHeld(stays: StaffStay[], ops: StayOps[], today: string):
     .sort((a, b) => compareISO(a.stay.check_out, b.stay.check_out));
 }
 
-export type LedgerKind = 'cobro' | 'garantia' | 'retiro' | 'gasto' | 'ajuste';
+export type LedgerKind = 'cobro' | 'garantia' | 'retiro' | 'gasto' | 'ajuste' | 'ingreso';
 export interface LedgerEntry {
   key: string;
   date: string;
@@ -78,7 +84,7 @@ export function cashLedger(payments: Payment[], ops: StayOps[], cash: CashMoveme
   const rows: Omit<LedgerEntry, 'balance'>[] = [
     ...payments
       .filter((p) => p.method === 'efectivo_usd' && p.received_by === 'staff')
-      .map((p) => ({ key: `p-${p.id}`, date: p.paid_on, kind: 'cobro' as const, label: 'Cobro en efectivo', detail: who(p.reservation_id), amount: p.amount_usd, ref: { type: 'payment' as const, id: p.id } })),
+      .map((p) => ({ key: `p-${p.id}`, date: p.paid_on, kind: 'cobro' as const, label: 'Cobro en efectivo', detail: [who(p.reservation_id), p.note].filter(Boolean).join(' · '), amount: p.amount_usd, ref: { type: 'payment' as const, id: p.id } })),
     ...ops
       .filter((o) => retainedDeposit(o) > 0)
       .map((o) => ({ key: `g-${o.reservation_id}`, date: o.deposit_returned_at!.slice(0, 10), kind: 'garantia' as const, label: 'Garantía retenida', detail: o.note || who(o.reservation_id), amount: retainedDeposit(o) })),
@@ -86,9 +92,9 @@ export function cashLedger(payments: Payment[], ops: StayOps[], cash: CashMoveme
       key: `c-${m.id}`,
       date: m.happened_on,
       kind: m.kind,
-      label: m.kind === 'retiro' ? 'Retiro' : m.kind === 'gasto' ? 'Gasto' : 'Ajuste',
+      label: m.kind === 'retiro' ? 'Retiro' : m.kind === 'gasto' ? 'Gasto' : m.kind === 'ingreso' ? 'Efectivo recibido' : 'Ajuste',
       detail: m.note,
-      amount: m.kind === 'ajuste' ? m.amount_usd : -Math.abs(m.amount_usd),
+      amount: cashSign(m),
       ref: { type: 'cash' as const, id: m.id },
     })),
   ].sort((a, b) => compareISO(a.date, b.date) || a.key.localeCompare(b.key));

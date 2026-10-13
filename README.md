@@ -65,6 +65,7 @@ npm run dev
    7. `20261016000000_resenas.sql` (encuesta de la estadía y reseñas en la página)
    8. `20261017000000_resenas_comentario.sql` (comentario público en la encuesta)
    9. `20261018000000_avisos.sql` (avisos al teléfono de Zuleika)
+   10. `20261019000000_caja_efectivo_recibido.sql` (botón "Recibí efectivo" en la caja de Zuleika)
 
    Si ya ejecutaste los anteriores, solo corre el que falta. Los pagos que ya tenías anotados se conservan como "Registrado antes del detalle de pagos".
 3. **Authentication → Sign In / Providers → Email:** desactiva **"Allow new users to sign up"** (nadie puede registrarse por su cuenta).

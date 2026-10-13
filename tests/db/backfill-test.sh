@@ -43,3 +43,8 @@ R=$($PSQL -At -c "set role anon; select count(*) from public.public_reviews();")
 $PSQL -f "$ROOT/supabase/migrations/20261017000000_resenas_comentario.sql"
 C=$($PSQL -At -c "set role anon; select count(*) from public.public_reviews();")
 [ "$C" = "0" ] && echo "COMENTARIO PÚBLICO SIN ROMPER LA PÁGINA: OK" || { echo "FALLA comentario: $C"; exit 1; }
+# v8 y v9: avisos y efectivo recibido sobre una caja con movimientos
+$PSQL -f "$ROOT/supabase/migrations/20261018000000_avisos.sql"
+$PSQL -f "$ROOT/supabase/migrations/20261019000000_caja_efectivo_recibido.sql"
+K=$($PSQL -At -c "select count(*) from pg_constraint where conname = 'cash_movements_kind_check' and pg_get_constraintdef(oid) like '%ingreso%';")
+[ "$K" = "1" ] && echo "CAJA ACEPTA EFECTIVO RECIBIDO: OK" || { echo "FALLA caja: $K"; exit 1; }

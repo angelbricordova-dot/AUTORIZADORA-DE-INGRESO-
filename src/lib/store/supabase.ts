@@ -415,6 +415,9 @@ export const supabaseStore: DataStore = {
   async addCash(input) {
     const m = sanitizeCash(input);
     const { error } = await getSupabase().from('cash_movements').insert(m);
+    // sin la migración de efectivo recibido, la base no conoce ese tipo de movimiento
+    if (error && m.kind === 'ingreso' && ['23514', '42501'].includes(error.code ?? ''))
+      throw new Error('Para anotar efectivo recibido falta correr en Supabase la migración 20261019000000_caja_efectivo_recibido.sql.');
     if (error) throw friendlyError(error);
   },
 

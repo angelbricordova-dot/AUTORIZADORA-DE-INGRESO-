@@ -784,6 +784,10 @@ textarea {
   border-color: var(--brand-ink);
   color: #fff;
 }
+.chip > input:checked + span .muted {
+  color: inherit;
+  opacity: 0.75;
+}
 .chip > input:checked + span .swatch {
   box-shadow: 0 0 0 1.5px #fff;
 }
