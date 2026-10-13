@@ -64,6 +64,7 @@ npm run dev
    6. `20261015000000_tiktok.sql` (enlace de TikTok en la página)
    7. `20261016000000_resenas.sql` (encuesta de la estadía y reseñas en la página)
    8. `20261017000000_resenas_comentario.sql` (comentario público en la encuesta)
+   9. `20261018000000_avisos.sql` (avisos al teléfono de Zuleika)
 
    Si ya ejecutaste los anteriores, solo corre el que falta. Los pagos que ya tenías anotados se conservan como "Registrado antes del detalle de pagos".
 3. **Authentication → Sign In / Providers → Email:** desactiva **"Allow new users to sign up"** (nadie puede registrarse por su cuenta).
@@ -102,6 +103,21 @@ Cada usuario de Supabase, por sí solo, tiene su **propio** panel vacío. Para q
 3. Una administradora entra en `/admin`. **Zuleika entra en `/trabajo`**: es la misma app pero con su propio ícono (una llave sobre un atardecer) y nombre ("Trabajo Tu Día"); al instalarla en su teléfono abre directo en su panel de tareas. El panel saluda a cada quien por su nombre; cada persona lo puede cambiar en **Más → Tu nombre** (no cambia el nombre de la planilla, que sigue en **Datos de la planilla**). Si ya había entrado antes y vio un panel vacío, ese panel vacío se borra al darle acceso.
 
 Para quitar un acceso, toca la papelera junto a su nombre.
+
+### Avisos al teléfono de Zuleika
+
+Cuando el panel registra una estadía nueva, a Zuleika le llega una notificación ("Nuevo huésped en el N°30 · Llega mañana · 2 noches · 3 personas"). Además, **cada mañana a las 7:00** le llega el resumen del día: quién se va, quién llega y, si hoy no hay nada, quién llega mañana para que deje todo listo. Las administradoras que activen los avisos reciben el mismo resumen.
+
+Se configura **una sola vez**:
+
+1. Corre la migración `20261018000000_avisos.sql` en el SQL Editor.
+2. En el panel, **Más → Avisos en este teléfono → Generar llaves**. Las llaves se crean en tu navegador.
+3. Copia las tres variables a Netlify (**Environment variables**): `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (secreta) y `AVISOS_SECRET` (secreta). Opcional: `VAPID_SUBJECT` con un `mailto:` tuyo.
+4. Copia la línea de SQL que aparece y ejecútala en Supabase: guarda solo la huella de `AVISOS_SECRET`, no la clave.
+5. **Trigger deploy** en Netlify.
+6. En el teléfono de Zuleika: abre `/trabajo`, instálala en la pantalla de inicio, ábrela desde el ícono y toca **Activar avisos** y luego **Enviar aviso de prueba**. En iPhone hace falta iOS 16.4 o más nuevo y la app instalada. En Android funciona también desde Chrome.
+
+No pegues estas llaves en ningún chat. Si se pierden, genera otras: cada teléfono tendrá que volver a tocar "Activar avisos".
 
 ### Borrado automático de cédulas viejas (recomendado)
 

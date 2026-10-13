@@ -148,3 +148,27 @@ test('la app de trabajo de Zuleika tiene su propia puerta e ícono de llave', as
   // no muestra nada del panel completo
   await expect(page.getByRole('navigation', { name: 'Secciones' })).toHaveCount(0);
 });
+
+test('avisos: Zuleika ve la tarjeta para activarlos y el servicio de avisos se publica', async ({ page, request }) => {
+  await page.goto('/trabajo');
+  const card = page.getByRole('region', { name: /Avisos en este teléfono/ });
+  await expect(card).toBeVisible();
+  // sin llaves configuradas en el servidor, le dice a quién avisar en vez de un botón que falla
+  await expect(card).toContainText('Todavía no están configurados');
+  const sw = await request.get('/sw.js');
+  expect(sw.ok()).toBe(true);
+  expect(await sw.text()).toContain("addEventListener('push'");
+});
+
+test('avisos: el panel genera las llaves en el navegador sin mostrar la clave en el SQL', async ({ page }) => {
+  await page.goto('/admin/mas');
+  const card = page.getByRole('region', { name: /Avisos en este teléfono/ });
+  await card.getByRole('button', { name: 'Generar llaves' }).click();
+  const values = card.locator('.copy-value');
+  await expect(values).toHaveCount(4);
+  const [pub, priv, secret, sql] = await values.allTextContents();
+  expect(pub).toMatch(/^[A-Za-z0-9_-]{87}$/);
+  expect(priv).toMatch(/^[A-Za-z0-9_-]{43}$/);
+  expect(sql).toMatch(/insert into public\.app_secrets .*'[0-9a-f]{64}'/s);
+  expect(sql).not.toContain(secret);
+});

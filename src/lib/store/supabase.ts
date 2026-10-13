@@ -8,6 +8,7 @@ import type { AppData, DataStore } from './types';
 import { DEFAULT_SETTINGS, OWN_DEFAULTS, friendlyError, nameFromEmail, type Me } from './types';
 import { sanitizeReview, sanitizeCash, sanitizeGuests, sanitizeOpsPatch, sanitizePayment, sanitizeProperty, sanitizeReservation, sanitizeVehicles } from './validate';
 import { addDays } from '../dates';
+import { notifyNewStay } from '../../push';
 
 const url = cleanSupabaseUrl(import.meta.env.VITE_SUPABASE_URL as string | undefined);
 const anon = cleanSupabaseKey(import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined);
@@ -320,6 +321,8 @@ export const supabaseStore: DataStore = {
     const propertyId = clean.property_id ?? (await ownId(sb));
     const { data, error } = await sb.from('reservations').insert({ ...fields, property_id: propertyId }).select('id').single();
     if (error) throw friendlyError(error);
+    // avisa a Zuleika en su teléfono (si los avisos están activos); nunca frena el guardado
+    if (clean.status !== 'cancelada') notifyNewStay(data.id as string);
     return data.id as string;
   },
 

@@ -7,6 +7,7 @@ import { todayISO } from './lib/dates';
 import { Icon } from './components/Icon';
 import { LogoMark } from './components/Logo';
 import { OpsBoard } from './components/Ops';
+import { PushCard } from './components/PushCard';
 import { ThemeToggle } from './components/ThemeToggle';
 import { setAppIdentity } from './install';
 
@@ -79,6 +80,7 @@ export function StaffApp({ name }: { name: string }) {
             <div className="skeleton" style={{ height: 220 }} />
           </div>
         ) : null}
+        <PushCard who="staff" />
       </main>
     </div>
   );

@@ -294,6 +294,36 @@ delete from public.team_members where member_id = '44444444-4444-4444-4444-44444
 select set_config('request.jwt.claim.sub','44444444-4444-4444-4444-444444444444', false);
 select pg_temp.check((select count(*) = 0 from public.reservations), 'sin acceso, Angélica ya no ve nada');
 
+-- ===== Avisos al teléfono (v8)
+reset role;
+insert into public.app_secrets values ('avisos', encode(sha256(convert_to('clave-de-prueba-muy-larga-123456', 'UTF8')), 'hex'));
+set role authenticated;
+select set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111', false);
+select public.add_team_member('zuleika@test', 'Zuleika');
+select set_config('request.jwt.claim.sub','33333333-3333-3333-3333-333333333333', false);
+insert into public.push_subscriptions (endpoint, p256dh, auth, user_id, owner_id)
+values ('https://push.example/zuleika', 'BPk1234567890abcdefghijklmnopq', 'auth12345678', '22222222-2222-2222-2222-222222222222', '22222222-2222-2222-2222-222222222222');
+select pg_temp.check((select user_id = '33333333-3333-3333-3333-333333333333' and owner_id = '11111111-1111-1111-1111-111111111111' from public.push_subscriptions), 'el teléfono queda a nombre de Zuleika y del panel de Oniris');
+select pg_temp.expect_error($q$select * from public.push_new_stay('bbbbbbbb-0000-0000-0000-000000000001')$q$, 'Zuleika no dispara avisos');
+select pg_temp.expect_error($q$insert into public.push_subscriptions (endpoint, p256dh, auth) values ('http://inseguro', 'BPk1234567890abcdefghijklmnopq', 'auth12345678')$q$, 'solo direcciones https');
+select set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111', false);
+insert into public.reservations (id, property_id, contact_name, channel, check_in, check_out) values ('bbbbbbbb-0000-0000-0000-0000000000a1', 'aaaaaaaa-0000-0000-0000-000000000001', 'Familia Nueva', 'whatsapp', current_date + 400, current_date + 402);
+select pg_temp.check((select count(*) = 1 and min(endpoint) = 'https://push.example/zuleika' from public.push_new_stay('bbbbbbbb-0000-0000-0000-0000000000a1')), 'al registrar una estadía se avisa a Zuleika');
+select pg_temp.check((select count(*) = 0 from public.push_subscriptions), 'Oniris no ve los teléfonos de Zuleika');
+select set_config('request.jwt.claim.sub','22222222-2222-2222-2222-222222222222', false);
+select pg_temp.check((select count(*) = 0 from public.push_new_stay('bbbbbbbb-0000-0000-0000-0000000000a1')), 'B no puede avisar sobre estadías ajenas');
+reset role;
+set role anon;
+select set_config('request.jwt.claim.sub','', false);
+select pg_temp.expect_error($q$select * from public.push_digest('clave-equivocada-xxxxxxxxxxxxxxx', current_date)$q$, 'recordatorio sin la clave correcta');
+select pg_temp.check((select arrivals_tomorrow = 0 and arrivals = 0 from public.push_digest('clave-de-prueba-muy-larga-123456', current_date)), 'recordatorio con la clave: hoy nada');
+select pg_temp.check((select arrivals = 1 from public.push_digest('clave-de-prueba-muy-larga-123456', current_date + 400)), 'recordatorio: el día que llega la Familia Nueva');
+select pg_temp.check((select arrivals_tomorrow = 1 from public.push_digest('clave-de-prueba-muy-larga-123456', current_date + 399)), 'recordatorio: la víspera avisa que llegan mañana');
+select pg_temp.expect_error($q$select * from public.push_subscriptions$q$, 'anon no lee teléfonos');
+select public.push_forget('clave-de-prueba-muy-larga-123456', 'https://push.example/zuleika');
+reset role;
+select pg_temp.check((select count(*) = 0 from public.push_subscriptions), 'un teléfono que ya no existe se borra');
+
 reset role;
 set role anon;
 select set_config('request.jwt.claim.sub','', false);

@@ -5,6 +5,7 @@ import { useApp } from '../context';
 import { resetDemo } from '../lib/store/demo';
 import { href } from '../router';
 import { Icon, type IconName } from '../components/Icon';
+import { PushCard } from '../components/PushCard';
 
 export function MorePage() {
   const { data, store, signOut } = useApp();
@@ -31,6 +32,7 @@ export function MorePage() {
       </div>
       <MyName />
       <InstallApp />
+      <PushCard who="admin" admin={data.me?.role !== 'staff'} />
       <div className="panel list stagger">
         {items.map((it, i) => (
           <a key={it.title} className="list-item" href={it.to} style={{ '--i': i } as CSSProperties}>

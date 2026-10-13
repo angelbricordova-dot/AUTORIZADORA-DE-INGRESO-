@@ -2339,3 +2339,11 @@ a[href^='x-apple-data-detectors:'] {
   text-decoration: none;
   color: inherit;
 }
+
+/* Avisos al teléfono */
+.push-setup { border-top: 1px solid var(--line); padding-top: 14px; }
+.push-setup .label-row { display: flex; gap: 8px; align-items: center; }
+.copy-value {
+  display: block; min-width: 0; padding: 8px 10px; border-radius: 10px; background: var(--surface-2, var(--bg));
+  font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; user-select: all;
+}
