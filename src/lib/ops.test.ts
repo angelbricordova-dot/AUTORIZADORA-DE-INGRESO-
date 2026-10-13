@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CashMovement, Payment, StaffStay, StayOps } from './types';
-import { agenda, cashBalance, cashLedger, depositsHeld, emptyOps, paymentsByMethod, pendingToday, retainedDeposit, withdrawHint } from './ops';
+import { agenda, cashBalance, staffCanFix, cashLedger, depositsHeld, emptyOps, paymentsByMethod, pendingToday, retainedDeposit, withdrawHint } from './ops';
 
 const stay = (id: string, check_in: string, check_out: string, total = 200, paid = 0): StaffStay => ({
   id, unit: '30', property_name: 'N°30', check_in, check_out, status: 'confirmada', contact_name: `Grupo ${id}`, contact_phone: '', people: 3, minors: 1, total_usd: total, paid_usd: paid,
@@ -44,6 +44,13 @@ describe('caja de Zuleika', () => {
     expect(cashBalance(payments, ops, extra)).toBe(150 + 90 + 30 - 15 - 100 - 5 + 60);
     const l = cashLedger(payments, ops, extra, []);
     expect(l[0]).toMatchObject({ kind: 'ingreso', label: 'Efectivo recibido', detail: 'María González · adelanto', amount: 60, balance: 210 });
+  });
+
+  it('Zuleika corrige solo lo que anotó en las últimas 24 horas', () => {
+    const now = Date.parse('2026-10-13T12:00:00Z');
+    expect(staffCanFix('2026-10-13T08:00:00Z', now)).toBe(true);
+    expect(staffCanFix('2026-10-12T11:00:00Z', now)).toBe(false);
+    expect(staffCanFix(undefined, now)).toBe(false);
   });
 
   it('garantías en su poder y cuáles ya toca devolver', () => {

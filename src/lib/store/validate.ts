@@ -1,5 +1,5 @@
 // Punto 14: validación antes de enviar a la base de datos (la base vuelve a validar con CHECKs).
-import type { ReviewInput, CashInput, Guest, PaymentInput, PropertyInput, ReservationInput, StayOpsPatch, Vehicle } from '../types';
+import type { ReviewInput, CashInput, Guest, PaymentInput, PaymentPatch, PropertyInput, ReservationInput, StayOpsPatch, Vehicle } from '../types';
 import { CHANNELS, MAX_GUESTS, MAX_VEHICLES, STAY_TYPES } from '../types';
 import { isValidISO, nightsBetween } from '../dates';
 import { cleanPersonName, cleanPhone, cleanText } from '../sanitize';
@@ -115,6 +115,13 @@ export function sanitizePayment(p: PaymentInput): PaymentInput {
   if (!(out.amount_usd > 0) || out.amount_usd > 100000) throw new Error('Escribe un monto mayor que cero.');
   if (!PAY_IDS.includes(out.method)) throw new Error('Elige cómo pagó.');
   if (!isValidISO(out.paid_on)) throw new Error('Revisa la fecha del pago.');
+  return out;
+}
+
+export function sanitizePaymentPatch(p: PaymentPatch): PaymentPatch {
+  const out: PaymentPatch = { amount_usd: money2(p.amount_usd), paid_on: p.paid_on, note: cleanText(p.note, 200) };
+  if (!(out.amount_usd > 0) || out.amount_usd > 100000) throw new Error('Escribe un monto.');
+  if (!isValidISO(out.paid_on)) throw new Error('Revisa la fecha.');
   return out;
 }
 

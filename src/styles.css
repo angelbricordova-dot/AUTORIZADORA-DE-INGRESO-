@@ -1991,6 +1991,21 @@ textarea {
   font-size: 0.8125rem;
   color: rgba(255, 255, 255, 0.72);
 }
+.cash-card .cash-link {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 6px 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.85;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
 .cash-card .actions {
   display: flex;
   flex-wrap: wrap;

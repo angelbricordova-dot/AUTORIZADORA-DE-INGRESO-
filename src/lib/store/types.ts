@@ -4,6 +4,7 @@ import type {
   Guest,
   Payment,
   PaymentInput,
+  PaymentPatch,
   Property,
   PropertyInput,
   PublicData,
@@ -69,9 +70,11 @@ export interface DataStore {
   // Pagos, tareas, garantía y caja (los usan Oniris y Zuleika)
   addPayment(p: PaymentInput): Promise<void>;
   deletePayment(id: string): Promise<void>;
+  updatePayment(id: string, patch: PaymentPatch): Promise<void>;
   saveOps(reservationId: string, patch: StayOpsPatch): Promise<void>;
   addCash(m: CashInput): Promise<void>;
   deleteCash(id: string): Promise<void>;
+  updateCash(id: string, m: CashInput): Promise<void>;
 
   // Equipo
   addTeamMember(email: string, name: string, role: TeamRole): Promise<void>;

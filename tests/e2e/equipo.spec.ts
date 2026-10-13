@@ -207,3 +207,46 @@ test('efectivo recibido de un huésped de la agenda cuenta como pago de su estad
   await expect(caja(page)).toHaveText('$348');
   await expect(tarjeta(page, /^Llega Grupo Rodríguez/).getByRole('checkbox', { name: /Cobrar el saldo: \$140/ })).toBeVisible();
 });
+
+test('corregir un monto mal anotado: Zuleika puso $200 y eran $250', async ({ page }) => {
+  await page.goto('/trabajo');
+  await page.getByRole('button', { name: 'Recibí efectivo' }).click();
+  const hoja = page.getByRole('dialog', { name: 'Recibí efectivo' });
+  await hoja.getByLabel('Monto en dólares').fill('200');
+  await hoja.getByRole('radio', { name: 'Otra persona' }).check();
+  await hoja.getByLabel('Nombre de quien lo entregó').fill('Oniris');
+  await hoja.getByRole('button', { name: 'Anotar $200 recibido' }).click();
+  await expect(caja(page)).toHaveText('$448');
+  // lo de antes (datos de ejemplo de otros días) no se puede tocar desde su app; lo de hoy sí
+  await page.getByRole('button', { name: 'Ver y corregir movimientos' }).click();
+  await expect(page.getByRole('button', { name: /^Corregir/ })).toHaveCount(1);
+  await page.getByRole('button', { name: /^Corregir efectivo recibido/ }).click();
+  const fix = page.getByRole('dialog', { name: 'Corregir movimiento' });
+  await expect(fix.getByLabel('Monto correcto en dólares')).toHaveValue('200');
+  await fix.getByLabel('Monto correcto en dólares').fill('250');
+  await fix.getByRole('button', { name: 'Guardar $250' }).click();
+  await expect(caja(page)).toHaveText('$498');
+  await expect(page.locator('.ledger-row').first()).toContainText('$250');
+  // Oniris lo ve corregido y puede corregir cualquier movimiento
+  await page.goto('/admin/zuleika');
+  await expect(caja(page)).toHaveText('$498');
+  await page.getByText('Movimientos de la caja').click();
+  expect(await page.getByRole('button', { name: /^Corregir/ }).count()).toBeGreaterThan(1);
+});
+
+test('Oniris corrige un cobro en efectivo y lo pagado de la estadía se recalcula', async ({ page }) => {
+  await page.goto('/admin/zuleika');
+  await page.getByText('Movimientos de la caja').click();
+  const cobro = page.getByRole('button', { name: /^Corregir cobro en efectivo/ }).first();
+  await cobro.click();
+  const fix = page.getByRole('dialog', { name: 'Corregir movimiento' });
+  const antes = Number(await fix.getByLabel('Monto correcto en dólares').inputValue());
+  await fix.getByLabel('Monto correcto en dólares').fill(String(antes + 10));
+  await fix.getByRole('button', { name: /^Guardar/ }).click();
+  await expect(caja(page)).toHaveText('$258');
+  // borrar desde la misma hoja
+  await page.getByRole('button', { name: /^Corregir cobro en efectivo/ }).first().click();
+  page.once('dialog', (d) => d.accept());
+  await page.getByRole('dialog', { name: 'Corregir movimiento' }).getByRole('button', { name: 'Borrar este movimiento' }).click();
+  await expect(caja(page)).toHaveText(`$${258 - (antes + 10)}`);
+});

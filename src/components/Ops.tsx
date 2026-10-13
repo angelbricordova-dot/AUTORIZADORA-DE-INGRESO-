@@ -5,7 +5,7 @@ import { PAY_METHODS, payMethodLabel } from '../lib/types';
 import type { DataStore } from '../lib/store';
 import { addDays, formatDayMonth, formatLong, weekdayShort } from '../lib/dates';
 import { formatUSD, parseMoney } from '../lib/money';
-import { agenda, agendaMessage, balanceDue, cashBalance, cashLedger, depositsHeld, paymentsByMethod, withdrawHint, type AgendaItem, type TaskId } from '../lib/ops';
+import { agenda, agendaMessage, balanceDue, cashBalance, cashLedger, depositsHeld, paymentsByMethod, staffCanFix, withdrawHint, type AgendaItem, type LedgerEntry, type TaskId } from '../lib/ops';
 import { href } from '../router';
 import { Icon, type IconName } from './Icon';
 import { BottomSheet } from './BottomSheet';
@@ -67,6 +67,7 @@ export function OpsBoard({
   const [depositFor, setDepositFor] = useState<{ item: AgendaItem; mode: 'in' | 'out' } | null>(null);
   const [cashKind, setCashKind] = useState<CashKind | null>(null);
   const [incomeOpen, setIncomeOpen] = useState(false);
+  const [fixing, setFixing] = useState<LedgerEntry | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
   const balance = cashBalance(data.payments, data.ops, data.cash);
@@ -202,7 +203,7 @@ export function OpsBoard({
 
       {view === 'owner' ? <MethodsSummary data={data} today={today} /> : null}
 
-      <details className="disclosure">
+      <details className="disclosure" id="movimientos">
         <summary>
           <Icon name="wallet" style={{ width: 20, height: 20, color: 'var(--brand)' }} />
           Movimientos de la caja
@@ -227,18 +228,9 @@ export function OpsBoard({
                     </span>
                     <span className="tiny muted">queda {formatUSD(e.balance)}</span>
                   </span>
-                  {view === 'owner' && e.ref ? (
-                    <button
-                      className="icon-btn flat"
-                      type="button"
-                      aria-label={`Borrar ${e.label.toLowerCase()} del ${formatDayMonth(e.date)}`}
-                      onClick={() => {
-                        if (!window.confirm('¿Borrar este movimiento?')) return;
-                        const ref = e.ref!;
-                        run(`del-${ref.id}`, () => (ref.type === 'payment' ? store.deletePayment(ref.id) : store.deleteCash(ref.id)), 'Movimiento borrado');
-                      }}
-                    >
-                      <Icon name="trash" />
+                  {e.ref && (view === 'owner' || staffCanFix(e.ref.created_at)) ? (
+                    <button className="icon-btn flat" type="button" aria-label={`Corregir ${e.label.toLowerCase()} del ${formatDayMonth(e.date)}`} onClick={() => setFixing(e)}>
+                      <Icon name="edit" />
                     </button>
                   ) : null}
                 </div>
@@ -282,6 +274,25 @@ export function OpsBoard({
             `Anotado: ${formatUSD(r.amount)} en la caja`,
           )
         }
+      />
+      <FixSheet
+        entry={fixing}
+        data={data}
+        today={today}
+        onClose={() => setFixing(null)}
+        onSave={(ref, v) =>
+          run(
+            'fix',
+            () => {
+              if (ref.type === 'payment') return store.updatePayment(ref.id, { amount_usd: v.amount, paid_on: v.date, note: v.note });
+              const m = data.cash.find((c) => c.id === ref.id)!;
+              // un ajuste conserva su signo; lo demás siempre es positivo
+              return store.updateCash(ref.id, { kind: m.kind, amount_usd: m.kind === 'ajuste' && m.amount_usd < 0 ? -v.amount : v.amount, happened_on: v.date, note: v.note });
+            },
+            `Corregido: ${formatUSD(v.amount)}`,
+          )
+        }
+        onDelete={(ref) => run('fix', () => (ref.type === 'payment' ? store.deletePayment(ref.id) : store.deleteCash(ref.id)), 'Movimiento borrado')}
       />
       <CashSheet
         kind={cashKind}
@@ -354,6 +365,18 @@ function CashCard({
           <Icon name="minus" /> Anotar gasto
         </button>
       </div>
+      <button
+        className="cash-link"
+        type="button"
+        onClick={() => {
+          const d = document.getElementById('movimientos') as HTMLDetailsElement | null;
+          if (!d) return;
+          d.open = true;
+          d.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }}
+      >
+        Ver y corregir movimientos
+      </button>
     </section>
   );
 }
@@ -838,6 +861,111 @@ function IncomeForm({
       </div>
       <button className="btn btn-primary btn-block" type="submit" disabled={saving || !ready}>
         {saving ? <span className="spinner" /> : <Icon name="check" />} Anotar {value > 0 ? formatUSD(value) : 'efectivo'} recibido
+      </button>
+    </form>
+  );
+}
+
+// ---------------------------------------------------------------------
+// Corregir un movimiento de la caja (monto, fecha, nota) o borrarlo
+// ---------------------------------------------------------------------
+type FixValues = { amount: number; date: string; note: string };
+type LedgerRef = NonNullable<LedgerEntry['ref']>;
+
+function FixSheet({
+  entry,
+  data,
+  today,
+  onClose,
+  onSave,
+  onDelete,
+}: {
+  entry: LedgerEntry | null;
+  data: StaffData;
+  today: string;
+  onClose: () => void;
+  onSave: (ref: LedgerRef, v: FixValues) => Promise<boolean>;
+  onDelete: (ref: LedgerRef) => Promise<boolean>;
+}) {
+  return (
+    <BottomSheet open={!!entry?.ref} onClose={onClose} label="Corregir movimiento">
+      {entry?.ref ? <FixForm key={entry.key} entry={entry} refx={entry.ref} data={data} today={today} onClose={onClose} onSave={onSave} onDelete={onDelete} /> : null}
+    </BottomSheet>
+  );
+}
+
+function FixForm({
+  entry,
+  refx,
+  data,
+  today,
+  onClose,
+  onSave,
+  onDelete,
+}: {
+  entry: LedgerEntry;
+  refx: LedgerRef;
+  data: StaffData;
+  today: string;
+  onClose: () => void;
+  onSave: (ref: LedgerRef, v: FixValues) => Promise<boolean>;
+  onDelete: (ref: LedgerRef) => Promise<boolean>;
+}) {
+  const pay = refx.type === 'payment' ? data.payments.find((p) => p.id === refx.id) : undefined;
+  const cash = refx.type === 'cash' ? data.cash.find((c) => c.id === refx.id) : undefined;
+  const [amount, setAmount] = useState(String(Math.abs(pay?.amount_usd ?? cash?.amount_usd ?? 0)));
+  const [date, setDate] = useState(pay?.paid_on ?? cash?.happened_on ?? today);
+  const [note, setNote] = useState(pay?.note ?? cash?.note ?? '');
+  const [saving, setSaving] = useState(false);
+  const value = parseMoney(amount);
+  const needsNote = cash?.kind === 'gasto' || cash?.kind === 'ingreso';
+  const noteLabel = cash?.kind === 'gasto' ? '¿En qué se gastó?' : cash?.kind === 'ingreso' ? 'Quién lo entregó (y por qué)' : 'Nota (opcional)';
+  const stayName = pay ? (data.stays.find((s) => s.id === pay.reservation_id)?.contact_name ?? '') : '';
+  async function done(p: Promise<boolean>) {
+    setSaving(true);
+    const ok = await p;
+    setSaving(false);
+    if (ok) onClose();
+  }
+  return (
+    <form
+      className="stack"
+      onSubmit={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        done(onSave(refx, { amount: value, date, note: note.trim() }));
+      }}
+    >
+      <h2>Corregir movimiento</h2>
+      <p className="muted small">
+        {entry.label}
+        {stayName ? ` · ${stayName}` : ''} · anotado {formatUSD(Math.abs(entry.amount))}
+      </p>
+      <div className="field">
+        <label htmlFor="fix-amount">Monto correcto en dólares</label>
+        <input id="fix-amount" className="input input-big" inputMode="decimal" autoComplete="off" value={amount} onChange={(e) => setAmount(e.target.value)} />
+      </div>
+      <div className="field">
+        <label htmlFor="fix-note">{noteLabel}</label>
+        <input id="fix-note" className="input" maxLength={200} autoComplete="off" value={note} onChange={(e) => setNote(e.target.value)} />
+      </div>
+      <div className="field">
+        <label htmlFor="fix-date">Fecha</label>
+        <input id="fix-date" className="input" type="date" value={date} max={addDays(today, 1)} onChange={(e) => setDate(e.target.value)} />
+      </div>
+      <button className="btn btn-primary btn-block" type="submit" disabled={saving || !(value > 0) || (needsNote && note.trim().length < 2)}>
+        {saving ? <span className="spinner" /> : <Icon name="check" />} Guardar {value > 0 ? formatUSD(value) : 'corrección'}
+      </button>
+      <button
+        className="btn btn-ghost btn-block"
+        type="button"
+        disabled={saving}
+        onClick={() => {
+          if (!window.confirm('¿Borrar este movimiento de la caja?')) return;
+          done(onDelete(refx));
+        }}
+      >
+        <Icon name="trash" /> Borrar este movimiento
       </button>
     </form>
   );

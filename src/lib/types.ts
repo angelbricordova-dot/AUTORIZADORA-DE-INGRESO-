@@ -256,8 +256,12 @@ export interface Payment {
   paid_on: string;
   reference: string;
   note: string;
+  /** cuándo se anotó (para saber si Zuleika todavía lo puede corregir) */
+  created_at?: string;
 }
-export type PaymentInput = Omit<Payment, 'id'>;
+export type PaymentInput = Omit<Payment, 'id' | 'created_at'>;
+/** Lo que se puede corregir de un pago ya anotado */
+export type PaymentPatch = Pick<Payment, 'amount_usd' | 'paid_on' | 'note'>;
 
 export interface StayOps {
   reservation_id: string;
@@ -281,8 +285,9 @@ export interface CashMovement {
   amount_usd: number;
   happened_on: string;
   note: string;
+  created_at?: string;
 }
-export type CashInput = Omit<CashMovement, 'id'>;
+export type CashInput = Omit<CashMovement, 'id' | 'created_at'>;
 
 /** admin: maneja todo el panel (Oniris, Angélica). staff: solo su panel de trabajo (Zuleika). */
 export type TeamRole = 'admin' | 'staff';

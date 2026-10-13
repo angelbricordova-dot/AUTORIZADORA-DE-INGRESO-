@@ -75,7 +75,7 @@ export interface LedgerEntry {
   amount: number;
   balance: number;
   /** id del pago o movimiento, para poder corregirlo */
-  ref?: { type: 'payment' | 'cash'; id: string };
+  ref?: { type: 'payment' | 'cash'; id: string; created_at?: string };
 }
 
 /** Historial de la caja con el saldo después de cada movimiento (lo más reciente primero). */
@@ -84,7 +84,7 @@ export function cashLedger(payments: Payment[], ops: StayOps[], cash: CashMoveme
   const rows: Omit<LedgerEntry, 'balance'>[] = [
     ...payments
       .filter((p) => p.method === 'efectivo_usd' && p.received_by === 'staff')
-      .map((p) => ({ key: `p-${p.id}`, date: p.paid_on, kind: 'cobro' as const, label: 'Cobro en efectivo', detail: [who(p.reservation_id), p.note].filter(Boolean).join(' · '), amount: p.amount_usd, ref: { type: 'payment' as const, id: p.id } })),
+      .map((p) => ({ key: `p-${p.id}`, date: p.paid_on, kind: 'cobro' as const, label: 'Cobro en efectivo', detail: [who(p.reservation_id), p.note].filter(Boolean).join(' · '), amount: p.amount_usd, ref: { type: 'payment' as const, id: p.id, created_at: p.created_at } })),
     ...ops
       .filter((o) => retainedDeposit(o) > 0)
       .map((o) => ({ key: `g-${o.reservation_id}`, date: o.deposit_returned_at!.slice(0, 10), kind: 'garantia' as const, label: 'Garantía retenida', detail: o.note || who(o.reservation_id), amount: retainedDeposit(o) })),
@@ -95,11 +95,18 @@ export function cashLedger(payments: Payment[], ops: StayOps[], cash: CashMoveme
       label: m.kind === 'retiro' ? 'Retiro' : m.kind === 'gasto' ? 'Gasto' : m.kind === 'ingreso' ? 'Efectivo recibido' : 'Ajuste',
       detail: m.note,
       amount: cashSign(m),
-      ref: { type: 'cash' as const, id: m.id },
+      ref: { type: 'cash' as const, id: m.id, created_at: m.created_at },
     })),
   ].sort((a, b) => compareISO(a.date, b.date) || a.key.localeCompare(b.key));
   let balance = 0;
   return rows.map((r) => ({ ...r, balance: (balance = round(balance + r.amount)) })).reverse();
+}
+
+/** Zuleika puede corregir lo que anotó en las últimas 24 horas (la base lo vuelve a verificar). */
+export function staffCanFix(createdAt: string | undefined, now = Date.now()): boolean {
+  if (!createdAt) return false;
+  const t = Date.parse(createdAt);
+  return Number.isFinite(t) && now - t < 24 * 3600 * 1000;
 }
 
 export interface WithdrawHint {

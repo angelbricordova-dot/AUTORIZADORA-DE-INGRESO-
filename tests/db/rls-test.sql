@@ -170,6 +170,15 @@ select pg_temp.expect_error($q$insert into public.cash_movements (kind, amount_u
 select pg_temp.expect_error($q$insert into public.cash_movements (kind, amount_usd) values ('ajuste', 10)$q$, 'Zuleika no hace ajustes');
 select pg_temp.check((select count(*) = 3 from public.cash_movements), 'Zuleika ve la caja');
 select pg_temp.check((select created_by = '33333333-3333-3333-3333-333333333333' from public.cash_movements where kind = 'ingreso'), 'el efectivo recibido queda a nombre de Zuleika');
+-- corrige lo que anotó: el monto cambia, quién y cuándo no
+update public.cash_movements set amount_usd = 50, created_by = '11111111-1111-1111-1111-111111111111', created_at = now() - interval '5 days' where kind = 'ingreso';
+select pg_temp.check((select amount_usd = 50 and created_by = '33333333-3333-3333-3333-333333333333' and created_at > now() - interval '1 hour' from public.cash_movements where kind = 'ingreso'), 'Zuleika corrige su efectivo recibido sin cambiar quién lo anotó');
+select pg_temp.expect_error($q$update public.cash_movements set kind = 'retiro' where kind = 'ingreso'$q$, 'Zuleika no convierte nada en retiro');
+update public.cash_movements set amount_usd = 1 where kind = 'retiro';
+select pg_temp.check((select amount_usd = 50 from public.cash_movements where kind = 'retiro'), 'Zuleika no corrige el retiro de Oniris');
+update public.payments set amount_usd = 150 where amount_usd = 140;
+select pg_temp.check((select paid_usd = 250 from public.staff_board('2026-10-01','2026-11-30') where id='bbbbbbbb-0000-0000-0000-000000000001'), 'al corregir su cobro, lo pagado de la estadía se recalcula');
+update public.payments set amount_usd = 140 where amount_usd = 150;
 -- no puede crear nada propio ni tocar planillas
 select pg_temp.expect_error($q$insert into public.properties (name, unit) values ('Mío','99')$q$, 'equipo no crea apartamentos');
 select pg_temp.expect_error($q$insert into public.guests (reservation_id, position, full_name, cedula) values ('bbbbbbbb-0000-0000-0000-000000000001',6,'X','9.999.999')$q$, 'equipo no agrega personas');

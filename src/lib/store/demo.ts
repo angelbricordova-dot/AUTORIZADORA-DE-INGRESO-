@@ -5,7 +5,7 @@ import { addDays, todayISO } from '../dates';
 import { conflictsFor } from '../availability';
 import type { AppData, DataStore } from './types';
 import { DEFAULT_SETTINGS, OWN_DEFAULTS, ownProperty } from './types';
-import { sanitizeReview, sanitizeCash, sanitizeGuests, sanitizeOpsPatch, sanitizePayment, sanitizeProperty, sanitizeReservation, sanitizeVehicles } from './validate';
+import { sanitizeReview, sanitizeCash, sanitizeGuests, sanitizeOpsPatch, sanitizePayment, sanitizePaymentPatch, sanitizeProperty, sanitizeReservation, sanitizeVehicles } from './validate';
 import { emptyOps, staffStaysFromApp } from '../ops';
 
 const KEY = 'tudia-demo-v3';
@@ -324,11 +324,17 @@ export const demoStore: DataStore = {
     const p = sanitizePayment(input);
     const d = get();
     if (!d.reservations.some((r) => r.id === p.reservation_id)) throw new Error('No encontré esa estadía.');
-    commit(withPaid({ ...d, payments: [...d.payments, { ...p, id: uid() }] }));
+    commit(withPaid({ ...d, payments: [...d.payments, { ...p, id: uid(), created_at: new Date().toISOString() }] }));
   },
   async deletePayment(id) {
     const d = get();
     commit(withPaid({ ...d, payments: d.payments.filter((p) => p.id !== id) }));
+  },
+  async updatePayment(id, patch) {
+    const clean = sanitizePaymentPatch(patch);
+    const d = get();
+    if (!d.payments.some((p) => p.id === id)) throw new Error('Ese pago ya no existe.');
+    commit(withPaid({ ...d, payments: d.payments.map((p) => (p.id === id ? { ...p, ...clean } : p)) }));
   },
   async saveOps(reservationId, patch) {
     const clean = sanitizeOpsPatch(patch);
@@ -341,11 +347,17 @@ export const demoStore: DataStore = {
   async addCash(input) {
     const m = sanitizeCash(input);
     const d = get();
-    commit({ ...d, cash: [...d.cash, { ...m, id: uid() }] });
+    commit({ ...d, cash: [...d.cash, { ...m, id: uid(), created_at: new Date().toISOString() }] });
   },
   async deleteCash(id) {
     const d = get();
     commit({ ...d, cash: d.cash.filter((m) => m.id !== id) });
+  },
+  async updateCash(id, input) {
+    const m = sanitizeCash(input);
+    const d = get();
+    if (!d.cash.some((c) => c.id === id)) throw new Error('Ese movimiento ya no existe.');
+    commit({ ...d, cash: d.cash.map((c) => (c.id === id ? { ...c, ...m } : c)) });
   },
   async addTeamMember(email, name, role) {
     const d = get();

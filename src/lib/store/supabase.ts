@@ -6,7 +6,7 @@ import { formatCedula } from '../cedula';
 import { cleanSupabaseKey, cleanSupabaseUrl } from '../supabaseConfig';
 import type { AppData, DataStore } from './types';
 import { DEFAULT_SETTINGS, OWN_DEFAULTS, friendlyError, nameFromEmail, type Me } from './types';
-import { sanitizeReview, sanitizeCash, sanitizeGuests, sanitizeOpsPatch, sanitizePayment, sanitizeProperty, sanitizeReservation, sanitizeVehicles } from './validate';
+import { sanitizeReview, sanitizeCash, sanitizeGuests, sanitizeOpsPatch, sanitizePayment, sanitizePaymentPatch, sanitizeProperty, sanitizeReservation, sanitizeVehicles } from './validate';
 import { addDays } from '../dates';
 import { notifyNewStay } from '../../push';
 
@@ -152,10 +152,12 @@ async function ownerId(sb: SupabaseClient): Promise<string> {
   const { data, error } = await sb.rpc('acting_owner');
   return !error && typeof data === 'string' ? data : auth.user.id;
 }
-const PAY_COLUMNS = 'id, reservation_id, amount_usd, method, received_by, paid_on, reference, note';
+const PAY_COLUMNS = 'id, reservation_id, amount_usd, method, received_by, paid_on, reference, note, created_at';
 const OPS_COLUMNS =
   'reservation_id, clean_before_at, keys_at, clean_after_at, linens_at, deposit_usd, deposit_received_at, deposit_returned_at, deposit_returned_usd, note';
-const CASH_COLUMNS = 'id, kind, amount_usd, happened_on, note';
+/** Las políticas no dejan tocar ese movimiento (0 filas): es de otra persona o de hace más de un día. */
+const CANT_FIX = 'No se pudo corregir: solo puedes cambiar lo que anotaste tú en las últimas 24 horas. Pídele a quien administra el panel que lo corrija.';
+const CASH_COLUMNS = 'id, kind, amount_usd, happened_on, note, created_at';
 
 const mapPayment = (p: Payment): Payment => ({ ...p, amount_usd: num(p.amount_usd), reference: p.reference ?? '', note: p.note ?? '' });
 const mapOps = (o: StayOps): StayOps => ({
@@ -402,8 +404,16 @@ export const supabaseStore: DataStore = {
   },
 
   async deletePayment(id) {
-    const { error } = await getSupabase().from('payments').delete().eq('id', id);
+    const { data, error } = await getSupabase().from('payments').delete().eq('id', id).select('id');
     if (error) throw friendlyError(error);
+    if (!data?.length) throw new Error(CANT_FIX);
+  },
+
+  async updatePayment(id, patch) {
+    const clean = sanitizePaymentPatch(patch);
+    const { data, error } = await getSupabase().from('payments').update(clean).eq('id', id).select('id');
+    if (error) throw friendlyError(error);
+    if (!data?.length) throw new Error(CANT_FIX);
   },
 
   async saveOps(reservationId, patch) {
@@ -422,8 +432,17 @@ export const supabaseStore: DataStore = {
   },
 
   async deleteCash(id) {
-    const { error } = await getSupabase().from('cash_movements').delete().eq('id', id);
+    const { data, error } = await getSupabase().from('cash_movements').delete().eq('id', id).select('id');
     if (error) throw friendlyError(error);
+    if (!data?.length) throw new Error(CANT_FIX);
+  },
+
+  async updateCash(id, input) {
+    const m = sanitizeCash(input);
+    const { data, error } = await getSupabase().from('cash_movements').update(m).eq('id', id).select('id');
+    // sin la migración de corregir, Zuleika no tiene permiso de editar
+    if (error) throw friendlyError(error);
+    if (!data?.length) throw new Error(CANT_FIX);
   },
 
   async addTeamMember(email, name, role) {
