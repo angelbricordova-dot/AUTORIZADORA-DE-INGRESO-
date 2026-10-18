@@ -30,7 +30,7 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
-    "@anthropic-ai/sdk": "^0.133.0",
+    "@anthropic-ai/sdk": "^0.134.0",
     "@netlify/functions": "^6.0.2",
     "@playwright/test": "^1.56.1",
     "@tesseract.js-data/spa": "^1.0.0",
