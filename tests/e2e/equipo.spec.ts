@@ -270,11 +270,13 @@ test('estadía de un familiar de Oniris: no paga y Zuleika no cobra ni pide gara
   const fila = page.getByRole('link', { name: /Tía Carmen/ });
   await expect(fila).toContainText('Familiar · no paga');
   await expect(fila).not.toContainText('Debe');
-  // Zuleika: solo limpieza y llaves
+  // Zuleika: solo entregar las llaves, sin limpieza; y nada cuando se va
   await page.goto('/trabajo');
   const card = page.getByRole('article', { name: 'Llega Tía Carmen' });
   await expect(card).toContainText('Familiar · no paga');
-  await expect(card.getByRole('checkbox')).toHaveCount(2);
+  await expect(card.getByRole('checkbox')).toHaveCount(1);
+  await expect(card.getByRole('checkbox', { name: 'Entregar las llaves' })).toBeVisible();
+  await expect(page.getByRole('article', { name: 'Se va Tía Carmen' })).toHaveCount(0);
   await expect(card.getByRole('checkbox', { name: /garantía/ })).toHaveCount(0);
   await expect(card.getByRole('checkbox', { name: /Cobrar/ })).toHaveCount(0);
   // y no aparece para anotarle efectivo

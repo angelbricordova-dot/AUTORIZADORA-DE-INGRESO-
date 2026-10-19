@@ -39,13 +39,21 @@ export function avisoNuevaEstadia(s: { unit: string; check_in: string; check_out
 }
 
 /** Recordatorio de la mañana; null si ese día no hay nada que hacer. */
-export function avisoDelDia(d: { unit: string; arrivals: number; departures: number; arrivals_tomorrow: number }, hoy: string): Aviso | null {
+export function avisoDelDia(
+  d: { unit: string; arrivals: number; departures: number; arrivals_tomorrow: number; family_arrivals?: number },
+  hoy: string,
+): Aviso | null {
   const grupo = (n: number) => `${n} ${n === 1 ? 'grupo' : 'grupos'}`;
-  if (d.arrivals || d.departures) {
+  const familia = d.family_arrivals ?? 0;
+  if (d.arrivals || d.departures || familia) {
     const partes: string[] = [];
     if (d.departures) partes.push(`se ${d.departures === 1 ? 'va' : 'van'} ${grupo(d.departures)}`);
     if (d.arrivals) partes.push(`${d.arrivals === 1 ? 'llega' : 'llegan'} ${grupo(d.arrivals)}`);
-    const tareas = [d.departures ? 'revisar y devolver la garantía, limpiar y lavar la lencería' : '', d.arrivals ? 'dejar todo limpio y entregar las llaves' : '']
+    if (familia) partes.push(familia === 1 ? 'llega un familiar de Oniris' : `llegan ${familia} familiares de Oniris`);
+    const tareas = [
+      d.departures ? 'revisar y devolver la garantía, limpiar y lavar la lencería' : '',
+      d.arrivals ? 'dejar todo limpio y entregar las llaves' : familia ? 'entregar las llaves' : '',
+    ]
       .filter(Boolean)
       .join('; ');
     return { title: `Hoy en el N°${d.unit}`, body: `${mayuscula(partes.join(' y '))}. Toca para ver: ${tareas}.`, url: '/trabajo', tag: `dia-${hoy}` };

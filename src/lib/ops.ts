@@ -136,13 +136,8 @@ export interface Task {
 
 export function arrivalTasks(s: StaffStay, o: StayOps): Task[] {
   const due = balanceDue(s);
-  // un familiar de la dueña no paga ni deja garantía: solo limpieza y llaves
-  if (s.family) {
-    return [
-      { id: 'clean_before', label: 'Limpieza antes de la llegada', done: !!o.clean_before_at },
-      { id: 'keys', label: 'Entregar las llaves', done: !!o.keys_at },
-    ];
-  }
+  // un familiar de la dueña no paga, no deja garantía y no hace falta limpiar: solo se le entregan las llaves
+  if (s.family) return [{ id: 'keys', label: 'Entregar las llaves', done: !!o.keys_at }];
   return [
     { id: 'clean_before', label: 'Limpieza antes de la llegada', done: !!o.clean_before_at },
     ...(o.deposit_usd > 0 ? [{ id: 'deposit_in' as const, label: `Cobrar garantía de ${formatUSD(o.deposit_usd)}`, done: !!o.deposit_received_at }] : []),
@@ -181,7 +176,8 @@ export function agenda(stays: StaffStay[], ops: StayOps[], today: string, deposi
     if (s.status === 'cancelada') continue;
     const o = opsFor(ops, s.id, deposit);
     items.push({ stay: s, event: 'llega', date: s.check_in, tasks: arrivalTasks(s, o), ops: o });
-    items.push({ stay: s, event: 'sale', date: s.check_out, tasks: departureTasks(o), ops: o });
+    // cuando se va un familiar no hay limpieza ni garantía que revisar
+    if (!s.family) items.push({ stay: s, event: 'sale', date: s.check_out, tasks: departureTasks(o), ops: o });
   }
   const from = addDays(today, -lookBack);
   const until = addDays(today, days);

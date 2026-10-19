@@ -94,10 +94,10 @@ describe('agenda de tareas', () => {
     expect(a.days[1].items[0].tasks.map((t) => t.id)).toEqual(['clean_after', 'linens']);
   });
 
-  it('un familiar de la dueña: solo limpieza y llaves, sin cobro ni garantía', () => {
+  it('un familiar de la dueña: solo entregar las llaves (sin limpieza, cobro ni garantía)', () => {
     const a = agenda([{ ...stay('f', '2026-10-12', '2026-10-14', 0), family: true }], [], '2026-10-12', 100);
-    expect(a.days[0].items[0].tasks.map((t) => t.id)).toEqual(['clean_before', 'keys']);
-    expect(a.days[1].items[0].tasks.map((t) => t.id)).toEqual(['clean_after', 'linens']);
+    expect(a.days).toHaveLength(1);
+    expect(a.days[0].items[0].tasks.map((t) => t.id)).toEqual(['keys']);
   });
 
   it('cuenta lo pendiente de hoy', () => {
