@@ -1,5 +1,5 @@
 import type { AwningSegment } from '../lib/awnings';
-import { channelLabel } from '../lib/types';
+import { channelLabel, isFamilyStay } from '../lib/types';
 import { href } from '../router';
 import { Icon } from './Icon';
 
@@ -7,7 +7,7 @@ export function stayLabel(seg: AwningSegment): string {
   const r = seg.r;
   const status = r.status === 'tentativa' ? ' (tentativa)' : '';
   const conflict = seg.conflict ? ' — choca con otra reserva' : '';
-  return `${r.contact_name}, ${channelLabel(r.channel)}${status}${conflict}`;
+  return `${r.contact_name}, ${isFamilyStay(r) ? 'familiar (no paga)' : channelLabel(r.channel)}${status}${conflict}`;
 }
 
 /** Una estadía dibujada sobre sus noches, en el color de su canal. */

@@ -418,6 +418,7 @@ function StayCard({
           <span className="sub">
             {[s.property_name, late ? dayLabel(item.date, today) : '', people].filter(Boolean).join(' · ')}
           </span>
+          {s.family ? <span className="badge badge-brand family-badge">Familiar · no paga</span> : null}
         </span>
         <span className={`ops-count ${done === item.tasks.length ? 'all' : ''}`} aria-label={`${done} de ${item.tasks.length} tareas hechas`}>
           {done}/{item.tasks.length}
@@ -764,7 +765,8 @@ export function incomeCandidates(stays: StaffStay[], today: string): StaffStay[]
   const to = addDays(today, 30);
   const dist = (s: StaffStay) => Math.abs(Date.parse(s.check_in) - Date.parse(today));
   return stays
-    .filter((s) => s.status !== 'cancelada' && s.check_out >= from && s.check_in <= to)
+    // un familiar de la dueña no paga: no se le anota efectivo
+    .filter((s) => s.status !== 'cancelada' && !s.family && s.check_out >= from && s.check_in <= to)
     .sort((a, b) => dist(a) - dist(b))
     .slice(0, 6);
 }

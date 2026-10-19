@@ -500,6 +500,7 @@ export const supabaseStore: DataStore = {
         paid_usd: num(s.paid_usd),
         people: num(s.people),
         minors: num(s.minors),
+        family: s.family === true,
       })),
       payments: ops.payments,
       ops: ops.ops,

@@ -1,5 +1,5 @@
 import type { Reservation } from '../lib/types';
-import { channelLabel } from '../lib/types';
+import { channelLabel, isFamilyStay } from '../lib/types';
 import { formatDayMonth, nightsBetween } from '../lib/dates';
 import { balance } from '../lib/availability';
 import { formatUSD } from '../lib/money';
@@ -32,7 +32,7 @@ export function StayRow({ r, to, place }: { r: Reservation; to?: string; place?:
         <span className="title">{r.contact_name}</span>
         <span className="sub">
           {place ? `${place} · ` : ''}
-          {stayDates(r)} · {channelLabel(r.channel)}
+          {stayDates(r)} · {isFamilyStay(r) ? 'Familiar · no paga' : channelLabel(r.channel)}
           {r.status === 'tentativa' ? ' · tentativa' : ''}
         </span>
         <span className="row-wrap" style={{ marginTop: 6 }}>
@@ -40,7 +40,7 @@ export function StayRow({ r, to, place }: { r: Reservation; to?: string; place?:
           {r.status !== 'cancelada' && debt > 0 ? <span className="badge badge-warn">Debe {formatUSD(debt)}</span> : null}
         </span>
       </span>
-      <span className="amount">{formatUSD(r.total_usd)}</span>
+      <span className="amount">{isFamilyStay(r) ? 'Familiar' : formatUSD(r.total_usd)}</span>
       <Icon name="chevronRight" className="chev" />
     </a>
   );

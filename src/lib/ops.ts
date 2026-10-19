@@ -136,6 +136,13 @@ export interface Task {
 
 export function arrivalTasks(s: StaffStay, o: StayOps): Task[] {
   const due = balanceDue(s);
+  // un familiar de la dueña no paga ni deja garantía: solo limpieza y llaves
+  if (s.family) {
+    return [
+      { id: 'clean_before', label: 'Limpieza antes de la llegada', done: !!o.clean_before_at },
+      { id: 'keys', label: 'Entregar las llaves', done: !!o.keys_at },
+    ];
+  }
   return [
     { id: 'clean_before', label: 'Limpieza antes de la llegada', done: !!o.clean_before_at },
     ...(o.deposit_usd > 0 ? [{ id: 'deposit_in' as const, label: `Cobrar garantía de ${formatUSD(o.deposit_usd)}`, done: !!o.deposit_received_at }] : []),
@@ -224,6 +231,7 @@ export function staffStaysFromApp(reservations: Reservation[], properties: Prope
         minors: r.guests.filter((g) => g.is_minor).length,
         total_usd: r.total_usd,
         paid_usd: r.paid_usd,
+        family: r.stay_type === 'Familiar',
       };
     })
     .sort((a, b) => compareISO(a.check_in, b.check_in));

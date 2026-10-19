@@ -2366,3 +2366,9 @@ a[href^='x-apple-data-detectors:'] {
   display: block; min-width: 0; padding: 8px 10px; border-radius: 10px; background: var(--surface-2, var(--bg));
   font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; user-select: all;
 }
+
+/* Estadía de un familiar (no paga) */
+.who-comes { border: 0; margin: 0; padding: 0; min-width: 0; }
+.who-comes legend { padding: 0; margin-bottom: 8px; }
+.who-comes .family-note { margin-top: 10px; }
+.family-badge { margin-top: 6px; align-self: flex-start; }

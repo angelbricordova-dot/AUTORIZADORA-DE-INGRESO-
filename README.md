@@ -67,6 +67,7 @@ npm run dev
    9. `20261018000000_avisos.sql` (avisos al teléfono de Zuleika)
    10. `20261019000000_caja_efectivo_recibido.sql` (botón "Recibí efectivo" en la caja de Zuleika)
    11. `20261020000000_caja_corregir.sql` (Zuleika corrige lo que anotó en las últimas 24 horas)
+   12. `20261021000000_estadia_familiar.sql` (estadías de familiares de Oniris: no pagan)
 
    Si ya ejecutaste los anteriores, solo corre el que falta. Los pagos que ya tenías anotados se conservan como "Registrado antes del detalle de pagos".
 3. **Authentication → Sign In / Providers → Email:** desactiva **"Allow new users to sign up"** (nadie puede registrarse por su cuenta).

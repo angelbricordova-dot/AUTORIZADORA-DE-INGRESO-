@@ -94,6 +94,12 @@ describe('agenda de tareas', () => {
     expect(a.days[1].items[0].tasks.map((t) => t.id)).toEqual(['clean_after', 'linens']);
   });
 
+  it('un familiar de la dueña: solo limpieza y llaves, sin cobro ni garantía', () => {
+    const a = agenda([{ ...stay('f', '2026-10-12', '2026-10-14', 0), family: true }], [], '2026-10-12', 100);
+    expect(a.days[0].items[0].tasks.map((t) => t.id)).toEqual(['clean_before', 'keys']);
+    expect(a.days[1].items[0].tasks.map((t) => t.id)).toEqual(['clean_after', 'linens']);
+  });
+
   it('cuenta lo pendiente de hoy', () => {
     const done = { ...emptyOps('a', 100), clean_before_at: 'x', deposit_received_at: 'x', keys_at: 'x' };
     expect(pendingToday([stay('a', '2026-10-12', '2026-10-13', 200, 200)], [done], '2026-10-12', 100)).toBe(0);

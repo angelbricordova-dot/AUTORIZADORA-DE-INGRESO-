@@ -22,6 +22,8 @@ export function sanitizeReservation(input: ReservationInput): ReservationInput {
   const nights = nightsBetween(out.check_in, out.check_out);
   if (nights < 1) throw new Error('La salida debe ser al menos un día después del ingreso.');
   if (nights > 180) throw new Error('La estadía no puede pasar de 180 noches.');
+  // un familiar no paga: el total siempre es 0 (la base también lo exige)
+  if (out.stay_type === 'Familiar') out.total_usd = 0;
   return out;
 }
 

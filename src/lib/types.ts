@@ -313,6 +313,8 @@ export interface StaffStay {
   minors: number;
   total_usd: number;
   paid_usd: number;
+  /** Familiar de la dueña: no paga, no deja garantía */
+  family?: boolean;
 }
 
 export interface StaffData {
@@ -345,6 +347,8 @@ export const CHANNELS: { id: Channel; label: string }[] = [
   { id: 'otro', label: 'Otro' },
 ];
 
+/** Un familiar directo de la dueña se queda sin pagar. */
+export const isFamilyStay = (r: { stay_type?: StayType | string }) => r.stay_type === 'Familiar';
 export const STAY_TYPES: StayType[] = ['Alquiler Vacacional', 'Familiar', 'Alquiler Fijo', 'Mantenimiento', 'Otros'];
 
 export const MAX_GUESTS = 7;

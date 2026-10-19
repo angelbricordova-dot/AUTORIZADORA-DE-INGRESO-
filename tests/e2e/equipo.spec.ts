@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { noErrors, resetDemo, watchErrors } from './helpers';
+import { iso, noErrors, resetDemo, watchErrors } from './helpers';
 
 let errors: string[] = [];
 test.beforeEach(async ({ page }) => {
@@ -249,4 +249,35 @@ test('Oniris corrige un cobro en efectivo y lo pagado de la estadía se recalcul
   page.once('dialog', (d) => d.accept());
   await page.getByRole('dialog', { name: 'Corregir movimiento' }).getByRole('button', { name: 'Borrar este movimiento' }).click();
   await expect(caja(page)).toHaveText(`$${258 - (antes + 10)}`);
+});
+
+test('estadía de un familiar de Oniris: no paga y Zuleika no cobra ni pide garantía', async ({ page }) => {
+  await page.goto('/admin/reserva/nueva');
+  // un hueco libre en la agenda de ejemplo, dentro de la semana que ve Zuleika
+  await page.getByLabel('Entrada').fill(iso(6));
+  await page.getByLabel('Salida').fill(iso(8));
+  await page.getByLabel('Nombre o grupo (opcional)').fill('Tía Carmen');
+  await page.getByRole('radio', { name: 'Familiar de Oniris' }).check();
+  await expect(page.getByText(/no paga/).first()).toBeVisible();
+  await page.getByText('Canal y notas').click();
+  // no hay montos que llenar
+  await expect(page.getByLabel('Total (USD)')).toHaveCount(0);
+  await expect(page.getByLabel('Abono recibido')).toHaveCount(0);
+  await expect(page.getByLabel('Tipo de estadía (para la planilla)')).toHaveValue('Familiar');
+  await page.getByRole('button', { name: 'Guardar estadía' }).click();
+  await expect(page.getByText('Estadía registrada')).toBeVisible();
+  // en la lista sale como familiar, sin deuda
+  const fila = page.getByRole('link', { name: /Tía Carmen/ });
+  await expect(fila).toContainText('Familiar · no paga');
+  await expect(fila).not.toContainText('Debe');
+  // Zuleika: solo limpieza y llaves
+  await page.goto('/trabajo');
+  const card = page.getByRole('article', { name: 'Llega Tía Carmen' });
+  await expect(card).toContainText('Familiar · no paga');
+  await expect(card.getByRole('checkbox')).toHaveCount(2);
+  await expect(card.getByRole('checkbox', { name: /garantía/ })).toHaveCount(0);
+  await expect(card.getByRole('checkbox', { name: /Cobrar/ })).toHaveCount(0);
+  // y no aparece para anotarle efectivo
+  await page.getByRole('button', { name: 'Recibí efectivo' }).click();
+  await expect(page.getByRole('dialog', { name: 'Recibí efectivo' }).getByRole('radio', { name: /Tía Carmen/ })).toHaveCount(0);
 });

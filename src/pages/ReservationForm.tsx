@@ -87,14 +87,15 @@ export function ReservationForm({ id, query }: { id?: string; query: URLSearchPa
       check_out: f.check_out,
       stay_type: f.stay_type,
       status: f.status,
-      total_usd: parseMoney(f.total),
+      // un familiar no paga
+      total_usd: f.stay_type === 'Familiar' ? 0 : parseMoney(f.total),
       paid_usd: parseMoney(f.paid),
       notes: f.notes,
     };
     try {
       const savedId = await store.saveReservation(input);
       const abono = parseMoney(f.deposit);
-      if (!id && paymentsReady && abono > 0) {
+      if (!id && paymentsReady && abono > 0 && f.stay_type !== 'Familiar') {
         await store.addPayment({ reservation_id: savedId, amount_usd: abono, method: f.method, received_by: f.who, paid_on: today, reference: '', note: 'Abono al reservar' });
       }
       await reload();
@@ -119,7 +120,9 @@ export function ReservationForm({ id, query }: { id?: string; query: URLSearchPa
     }
   }
 
-  const total = parseMoney(f.total);
+  const family = f.stay_type === 'Familiar';
+  const ownerFirst = data.settings.owner_name.trim().split(/\s+/)[0] || 'la dueña';
+  const total = family ? 0 : parseMoney(f.total);
   const paid = paymentsReady ? (existing?.paid_usd ?? 0) + (id ? 0 : parseMoney(f.deposit)) : parseMoney(f.paid);
 
   return (
@@ -148,9 +151,9 @@ export function ReservationForm({ id, query }: { id?: string; query: URLSearchPa
         </a>
       ) : null}
 
-      {existing && paymentsReady ? <PaymentsSection r={existing} total={total} /> : null}
+      {existing && paymentsReady && !family ? <PaymentsSection r={existing} total={total} /> : null}
 
-      {existing && existing.status !== 'cancelada' && existing.check_out <= today ? (
+      {existing && !family && existing.status !== 'cancelada' && existing.check_out <= today ? (
         <a
           className="panel panel-pad spread ask-review"
           href={whatsappUrl(
@@ -219,10 +222,32 @@ export function ReservationForm({ id, query }: { id?: string; query: URLSearchPa
         />
       </div>
 
+      <fieldset className="field who-comes">
+        <legend className="field-label">¿Quién viene?</legend>
+        <div className="segmented" role="radiogroup" aria-label="¿Quién viene?">
+          <label className="chip">
+            <input type="radio" name="quien" checked={!family} onChange={() => set('stay_type', 'Alquiler Vacacional')} />
+            <span>Huéspedes</span>
+          </label>
+          <label className="chip">
+            <input type="radio" name="quien" checked={family} onChange={() => setF((x) => ({ ...x, stay_type: 'Familiar', deposit: '' }))} />
+            <span>Familiar de {ownerFirst}</span>
+          </label>
+        </div>
+        {family ? (
+          <div className="notice notice-ok family-note">
+            <Icon name="users" />
+            <span>
+              Familiar directo de {ownerFirst}: <strong>no paga</strong> y no deja garantía. {data.settings.staff_name} solo ve la limpieza y la entrega de llaves.
+            </span>
+          </div>
+        ) : null}
+      </fieldset>
+
       <details className="disclosure" open={!!existing}>
         <summary>
           <Icon name="money" style={{ width: 20, height: 20, color: 'var(--brand)' }} />
-          Canal, pago y notas
+          {family ? 'Canal y notas' : 'Canal, pago y notas'}
           <Icon name="chevronRight" className="chev" />
         </summary>
         <div className="disclosure-body">
@@ -254,24 +279,26 @@ export function ReservationForm({ id, query }: { id?: string; query: URLSearchPa
               ))}
             </div>
           </div>
-          <div className="grid-2">
-            <div className="field">
-              <label htmlFor="total">Total (USD)</label>
-              <input id="total" className="input" inputMode="decimal" placeholder="0" value={f.total} onChange={(e) => set('total', e.target.value)} />
+          {family ? null : (
+            <div className="grid-2">
+              <div className="field">
+                <label htmlFor="total">Total (USD)</label>
+                <input id="total" className="input" inputMode="decimal" placeholder="0" value={f.total} onChange={(e) => set('total', e.target.value)} />
+              </div>
+              {!paymentsReady ? (
+                <div className="field">
+                  <label htmlFor="paid">Pagado (USD)</label>
+                  <input id="paid" className="input" inputMode="decimal" placeholder="0" value={f.paid} onChange={(e) => set('paid', e.target.value)} />
+                </div>
+              ) : !id ? (
+                <div className="field">
+                  <label htmlFor="abono">Abono recibido</label>
+                  <input id="abono" className="input" inputMode="decimal" placeholder="0" value={f.deposit} onChange={(e) => set('deposit', e.target.value)} />
+                </div>
+              ) : null}
             </div>
-            {!paymentsReady ? (
-              <div className="field">
-                <label htmlFor="paid">Pagado (USD)</label>
-                <input id="paid" className="input" inputMode="decimal" placeholder="0" value={f.paid} onChange={(e) => set('paid', e.target.value)} />
-              </div>
-            ) : !id ? (
-              <div className="field">
-                <label htmlFor="abono">Abono recibido</label>
-                <input id="abono" className="input" inputMode="decimal" placeholder="0" value={f.deposit} onChange={(e) => set('deposit', e.target.value)} />
-              </div>
-            ) : null}
-          </div>
-          {paymentsReady && !id && parseMoney(f.deposit) > 0 ? (
+          )}
+          {!family && paymentsReady && !id && parseMoney(f.deposit) > 0 ? (
             <div className="field">
               <span className="field-label" id="lbl-abono">
                 ¿Cómo pagó el abono?
@@ -296,7 +323,7 @@ export function ReservationForm({ id, query }: { id?: string; query: URLSearchPa
               </div>
             </div>
           ) : null}
-          {total > 0 ? (
+          {!family && total > 0 ? (
             <p className="hint">
               {balance({ total_usd: total, paid_usd: paid }) > 0 ? `Falta por cobrar ${formatUSD(balance({ total_usd: total, paid_usd: paid }))}` : 'Pagado completo'}
               {nights ? ` · ${formatUSD(total / nights)} por noche` : ''}

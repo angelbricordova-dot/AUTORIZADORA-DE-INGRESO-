@@ -330,13 +330,23 @@ reset role;
 set role anon;
 select set_config('request.jwt.claim.sub','', false);
 select pg_temp.expect_error($q$select * from public.push_digest('clave-equivocada-xxxxxxxxxxxxxxx', current_date)$q$, 'recordatorio sin la clave correcta');
-select pg_temp.check((select arrivals_tomorrow = 0 and arrivals = 0 from public.push_digest('clave-de-prueba-muy-larga-123456', current_date)), 'recordatorio con la clave: hoy nada');
+select pg_temp.check((select arrivals_tomorrow = 0 and arrivals = 0 from public.push_digest('clave-de-prueba-muy-larga-123456', current_date + 700)), 'recordatorio con la clave: un día sin nada');
 select pg_temp.check((select arrivals = 1 from public.push_digest('clave-de-prueba-muy-larga-123456', current_date + 400)), 'recordatorio: el día que llega la Familia Nueva');
 select pg_temp.check((select arrivals_tomorrow = 1 from public.push_digest('clave-de-prueba-muy-larga-123456', current_date + 399)), 'recordatorio: la víspera avisa que llegan mañana');
 select pg_temp.expect_error($q$select * from public.push_subscriptions$q$, 'anon no lee teléfonos');
 select public.push_forget('clave-de-prueba-muy-larga-123456', 'https://push.example/zuleika');
 reset role;
 select pg_temp.check((select count(*) = 0 from public.push_subscriptions), 'un teléfono que ya no existe se borra');
+
+-- ===== Estadía de un familiar de Oniris: no se cobra
+reset role;
+set role authenticated;
+select set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111', false);
+select pg_temp.expect_error($q$insert into public.reservations (property_id, contact_name, channel, check_in, check_out, stay_type, total_usd) values ('aaaaaaaa-0000-0000-0000-000000000001', 'Tía Carmen', 'otro', current_date + 500, current_date + 503, 'Familiar', 120)$q$, 'un familiar no tiene monto a cobrar');
+insert into public.reservations (id, property_id, contact_name, channel, check_in, check_out, stay_type) values ('bbbbbbbb-0000-0000-0000-0000000000f1', 'aaaaaaaa-0000-0000-0000-000000000001', 'Tía Carmen', 'otro', current_date + 500, current_date + 503, 'Familiar');
+select set_config('request.jwt.claim.sub','33333333-3333-3333-3333-333333333333', false);
+select pg_temp.check((select family and total_usd = 0 from public.staff_board(current_date + 450, current_date + 600) where id = 'bbbbbbbb-0000-0000-0000-0000000000f1'), 'Zuleika sabe que la estadía es de un familiar');
+select pg_temp.check((select not family from public.staff_board(current_date + 350, current_date + 450) where id = 'bbbbbbbb-0000-0000-0000-0000000000a1'), 'una estadía normal no sale como familiar');
 
 reset role;
 set role anon;
