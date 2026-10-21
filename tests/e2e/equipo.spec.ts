@@ -255,7 +255,7 @@ test('estadía de un familiar de Oniris: no paga y Zuleika no cobra ni pide gara
   await page.goto('/admin/reserva/nueva');
   // un hueco libre en la agenda de ejemplo, dentro de la semana que ve Zuleika
   await page.getByLabel('Entrada').fill(iso(6));
-  await page.getByLabel('Salida').fill(iso(8));
+  await page.getByLabel('Salida').fill(iso(7));
   await page.getByLabel('Nombre o grupo (opcional)').fill('Tía Carmen');
   await page.getByRole('radio', { name: 'Familiar de Oniris' }).check();
   await expect(page.getByText(/no paga/).first()).toBeVisible();
@@ -270,13 +270,18 @@ test('estadía de un familiar de Oniris: no paga y Zuleika no cobra ni pide gara
   const fila = page.getByRole('link', { name: /Tía Carmen/ });
   await expect(fila).toContainText('Familiar · no paga');
   await expect(fila).not.toContainText('Debe');
-  // Zuleika: solo entregar las llaves, sin limpieza; y nada cuando se va
+  // Zuleika: entregar las llaves al llegar y recibirlas al irse, sin limpieza
   await page.goto('/trabajo');
   const card = page.getByRole('article', { name: 'Llega Tía Carmen' });
   await expect(card).toContainText('Familiar · no paga');
   await expect(card.getByRole('checkbox')).toHaveCount(1);
   await expect(card.getByRole('checkbox', { name: 'Entregar las llaves' })).toBeVisible();
-  await expect(page.getByRole('article', { name: 'Se va Tía Carmen' })).toHaveCount(0);
+  const salida = page.getByRole('article', { name: 'Se va Tía Carmen' });
+  await expect(salida.getByRole('checkbox')).toHaveCount(1);
+  await salida.getByRole('checkbox', { name: 'Recibir las llaves' }).click();
+  await expect(salida.getByRole('checkbox', { name: 'Recibir las llaves' })).toHaveAttribute('aria-checked', 'true');
+  await page.reload();
+  await expect(page.getByRole('article', { name: 'Se va Tía Carmen' }).getByRole('checkbox', { name: 'Recibir las llaves' })).toHaveAttribute('aria-checked', 'true');
   await expect(card.getByRole('checkbox', { name: /garantía/ })).toHaveCount(0);
   await expect(card.getByRole('checkbox', { name: /Cobrar/ })).toHaveCount(0);
   // y no aparece para anotarle efectivo

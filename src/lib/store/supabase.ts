@@ -155,6 +155,9 @@ async function ownerId(sb: SupabaseClient): Promise<string> {
 const PAY_COLUMNS = 'id, reservation_id, amount_usd, method, received_by, paid_on, reference, note, created_at';
 const OPS_COLUMNS =
   'reservation_id, clean_before_at, keys_at, clean_after_at, linens_at, deposit_usd, deposit_received_at, deposit_returned_at, deposit_returned_usd, note';
+/** keys_back_at llega con la migración de "recibir las llaves"; sin ella se lee lo de antes */
+const OPS_COLUMNS_V2 = `${OPS_COLUMNS}, keys_back_at`;
+let schemaKeysBack: boolean | null = null;
 /** Las políticas no dejan tocar ese movimiento (0 filas): es de otra persona o de hace más de un día. */
 const CANT_FIX = 'No se pudo corregir: solo puedes cambiar lo que anotaste tú en las últimas 24 horas. Pídele a quien administra el panel que lo corrija.';
 const CASH_COLUMNS = 'id, kind, amount_usd, happened_on, note, created_at';
@@ -199,10 +202,22 @@ async function loadMe(sb: SupabaseClient): Promise<Me | undefined> {
 }
 
 /** Pagos, tareas y caja. Si la migración de equipo no se ejecutó, devuelve listas vacías. */
+async function loadStayOps(sb: SupabaseClient) {
+  if (schemaKeysBack !== false) {
+    const res = await sb.from('stay_ops').select(OPS_COLUMNS_V2);
+    if (res.error?.code !== '42703') {
+      if (!res.error) schemaKeysBack = true;
+      return res;
+    }
+    schemaKeysBack = false;
+  }
+  return sb.from('stay_ops').select(OPS_COLUMNS);
+}
+
 async function loadOps(sb: SupabaseClient) {
   const [p, o, c] = await Promise.all([
     sb.from('payments').select(PAY_COLUMNS).order('paid_on'),
-    sb.from('stay_ops').select(OPS_COLUMNS),
+    loadStayOps(sb),
     sb.from('cash_movements').select(CASH_COLUMNS).order('happened_on'),
   ]);
   if (missingSchema(p.error) || missingSchema(o.error) || missingSchema(c.error)) return { payments: [], ops: [], cash: [], pending: true };
@@ -419,6 +434,8 @@ export const supabaseStore: DataStore = {
   async saveOps(reservationId, patch) {
     const clean = sanitizeOpsPatch(patch);
     const { error } = await getSupabase().from('stay_ops').upsert({ reservation_id: reservationId, ...clean }, { onConflict: 'reservation_id' });
+    if (error && 'keys_back_at' in clean && missingSchema(error))
+      throw new Error('Para anotar las llaves recibidas falta correr en Supabase la migración 20261023000000_llaves_devueltas.sql.');
     if (error) throw friendlyError(error);
   },
 

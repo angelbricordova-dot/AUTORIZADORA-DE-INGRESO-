@@ -142,7 +142,7 @@ const STAMP = /^\d{4}-\d{2}-\d{2}T[0-9:.]+(Z|[+-]\d{2}:?\d{2})?$/;
 
 export function sanitizeOpsPatch(p: StayOpsPatch): StayOpsPatch {
   const out: StayOpsPatch = {};
-  for (const k of ['clean_before_at', 'keys_at', 'clean_after_at', 'linens_at', 'deposit_received_at', 'deposit_returned_at'] as const) {
+  for (const k of ['clean_before_at', 'keys_at', 'clean_after_at', 'linens_at', 'deposit_received_at', 'deposit_returned_at', 'keys_back_at'] as const) {
     if (k in p) {
       const v = p[k];
       if (v !== null && !(typeof v === 'string' && STAMP.test(v))) throw new Error('Fecha inválida.');

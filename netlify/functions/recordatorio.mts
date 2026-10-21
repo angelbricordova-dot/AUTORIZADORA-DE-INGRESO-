@@ -22,7 +22,7 @@ export default async () => {
     return;
   }
   let total = 0;
-  for (const row of (data ?? []) as { endpoint: string; p256dh: string; auth: string; unit: string; arrivals: number; departures: number; arrivals_tomorrow: number; family_arrivals?: number }[]) {
+  for (const row of (data ?? []) as { endpoint: string; p256dh: string; auth: string; unit: string; arrivals: number; departures: number; arrivals_tomorrow: number; family_arrivals?: number; family_departures?: number }[]) {
     const aviso = avisoDelDia(row, hoy);
     if (!aviso) continue;
     const { enviados, muertos } = await enviar([row], aviso);

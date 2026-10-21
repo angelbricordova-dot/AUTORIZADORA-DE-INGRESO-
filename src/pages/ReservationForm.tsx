@@ -238,7 +238,7 @@ export function ReservationForm({ id, query }: { id?: string; query: URLSearchPa
           <div className="notice notice-ok family-note">
             <Icon name="users" />
             <span>
-              Familiar directo de {ownerFirst}: <strong>no paga</strong> y no deja garantía. {data.settings.staff_name} solo le entrega las llaves: no limpia antes ni después.
+              Familiar directo de {ownerFirst}: <strong>no paga</strong> y no deja garantía. {data.settings.staff_name} solo le entrega las llaves y las recibe al irse: no limpia antes ni después.
             </span>
           </div>
         ) : null}

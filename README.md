@@ -69,6 +69,7 @@ npm run dev
    11. `20261020000000_caja_corregir.sql` (Zuleika corrige lo que anotó en las últimas 24 horas)
    12. `20261021000000_estadia_familiar.sql` (estadías de familiares de Oniris: no pagan)
    13. `20261022000000_avisos_familiar.sql` (el aviso de la mañana cuenta a los familiares aparte)
+   14. `20261023000000_llaves_devueltas.sql` ("Recibir las llaves" cuando se va un familiar)
 
    Si ya ejecutaste los anteriores, solo corre el que falta. Los pagos que ya tenías anotados se conservan como "Registrado antes del detalle de pagos".
 3. **Authentication → Sign In / Providers → Email:** desactiva **"Allow new users to sign up"** (nadie puede registrarse por su cuenta).

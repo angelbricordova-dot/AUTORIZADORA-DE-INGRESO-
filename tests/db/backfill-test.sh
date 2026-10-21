@@ -49,5 +49,6 @@ $PSQL -f "$ROOT/supabase/migrations/20261019000000_caja_efectivo_recibido.sql"
 $PSQL -f "$ROOT/supabase/migrations/20261020000000_caja_corregir.sql"
 $PSQL -f "$ROOT/supabase/migrations/20261021000000_estadia_familiar.sql"
 $PSQL -f "$ROOT/supabase/migrations/20261022000000_avisos_familiar.sql"
+$PSQL -f "$ROOT/supabase/migrations/20261023000000_llaves_devueltas.sql"
 K=$($PSQL -At -c "select count(*) from pg_constraint where conname = 'cash_movements_kind_check' and pg_get_constraintdef(oid) like '%ingreso%';")
 [ "$K" = "1" ] && echo "CAJA ACEPTA EFECTIVO RECIBIDO: OK" || { echo "FALLA caja: $K"; exit 1; }

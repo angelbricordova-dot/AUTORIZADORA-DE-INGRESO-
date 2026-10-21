@@ -40,18 +40,21 @@ export function avisoNuevaEstadia(s: { unit: string; check_in: string; check_out
 
 /** Recordatorio de la mañana; null si ese día no hay nada que hacer. */
 export function avisoDelDia(
-  d: { unit: string; arrivals: number; departures: number; arrivals_tomorrow: number; family_arrivals?: number },
+  d: { unit: string; arrivals: number; departures: number; arrivals_tomorrow: number; family_arrivals?: number; family_departures?: number },
   hoy: string,
 ): Aviso | null {
   const grupo = (n: number) => `${n} ${n === 1 ? 'grupo' : 'grupos'}`;
   const familia = d.family_arrivals ?? 0;
-  if (d.arrivals || d.departures || familia) {
+  const familiaSeVa = d.family_departures ?? 0;
+  if (d.arrivals || d.departures || familia || familiaSeVa) {
     const partes: string[] = [];
     if (d.departures) partes.push(`se ${d.departures === 1 ? 'va' : 'van'} ${grupo(d.departures)}`);
+    if (familiaSeVa) partes.push(familiaSeVa === 1 ? 'se va un familiar de Oniris' : `se van ${familiaSeVa} familiares de Oniris`);
     if (d.arrivals) partes.push(`${d.arrivals === 1 ? 'llega' : 'llegan'} ${grupo(d.arrivals)}`);
     if (familia) partes.push(familia === 1 ? 'llega un familiar de Oniris' : `llegan ${familia} familiares de Oniris`);
     const tareas = [
       d.departures ? 'revisar y devolver la garantía, limpiar y lavar la lencería' : '',
+      familiaSeVa ? 'recibir las llaves' : '',
       d.arrivals ? 'dejar todo limpio y entregar las llaves' : familia ? 'entregar las llaves' : '',
     ]
       .filter(Boolean)

@@ -348,11 +348,14 @@ select set_config('request.jwt.claim.sub','33333333-3333-3333-3333-333333333333'
 select pg_temp.check((select family and total_usd = 0 from public.staff_board(current_date + 450, current_date + 600) where id = 'bbbbbbbb-0000-0000-0000-0000000000f1'), 'Zuleika sabe que la estadía es de un familiar');
 select pg_temp.check((select not family from public.staff_board(current_date + 350, current_date + 450) where id = 'bbbbbbbb-0000-0000-0000-0000000000a1'), 'una estadía normal no sale como familiar');
 insert into public.push_subscriptions (endpoint, p256dh, auth) values ('https://push.example/zuleika-2', 'BPk1234567890abcdefghijklmnopq', 'auth12345678');
+-- Zuleika anota que recibió las llaves
+insert into public.stay_ops (reservation_id, deposit_usd, keys_back_at) values ('bbbbbbbb-0000-0000-0000-0000000000f1', 0, now());
+select pg_temp.check((select keys_back_at is not null from public.stay_ops where reservation_id = 'bbbbbbbb-0000-0000-0000-0000000000f1'), 'Zuleika anota que recibió las llaves del familiar');
 reset role;
 set role anon;
 select set_config('request.jwt.claim.sub','', false);
 select pg_temp.check((select family_arrivals = 1 and arrivals = 0 from public.push_digest('clave-de-prueba-muy-larga-123456', current_date + 500)), 'el aviso de la mañana cuenta al familiar aparte (solo llaves)');
-select pg_temp.check((select departures = 0 and arrivals_tomorrow = 0 from public.push_digest('clave-de-prueba-muy-larga-123456', current_date + 503)), 'cuando se va un familiar no hay limpieza que avisar');
+select pg_temp.check((select departures = 0 and family_departures = 1 and arrivals_tomorrow = 0 from public.push_digest('clave-de-prueba-muy-larga-123456', current_date + 503)), 'cuando se va un familiar: sin limpieza, solo recibir las llaves');
 select pg_temp.check((select arrivals_tomorrow = 0 from public.push_digest('clave-de-prueba-muy-larga-123456', current_date + 499)), 'la víspera de un familiar no pide dejar todo limpio');
 
 reset role;

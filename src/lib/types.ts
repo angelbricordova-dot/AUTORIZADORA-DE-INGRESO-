@@ -274,6 +274,8 @@ export interface StayOps {
   deposit_returned_at: string | null;
   deposit_returned_usd: number | null;
   note: string;
+  /** Cuándo devolvieron las llaves (al irse un familiar) */
+  keys_back_at?: string | null;
 }
 export type StayOpsPatch = Partial<Omit<StayOps, 'reservation_id'>>;
 

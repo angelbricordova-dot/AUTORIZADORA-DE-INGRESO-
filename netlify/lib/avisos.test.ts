@@ -23,6 +23,9 @@ describe('avisos para Zuleika', () => {
     expect(avisoDelDia({ unit: '30', arrivals: 0, departures: 0, arrivals_tomorrow: 0, family_arrivals: 1 }, '2026-10-12')!.body).toBe(
       'Llega un familiar de Oniris. Toca para ver: entregar las llaves.',
     );
+    expect(avisoDelDia({ unit: '30', arrivals: 1, departures: 0, arrivals_tomorrow: 0, family_departures: 1 }, '2026-10-12')!.body).toBe(
+      'Se va un familiar de Oniris y llega 1 grupo. Toca para ver: recibir las llaves; dejar todo limpio y entregar las llaves.',
+    );
   });
   it('fechas en hora de Venezuela', () => {
     expect(diaCorto('2026-10-15')).toBe('jue 15 oct');

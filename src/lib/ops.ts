@@ -18,6 +18,7 @@ export function emptyOps(reservationId: string, deposit: number): StayOps {
     deposit_returned_at: null,
     deposit_returned_usd: null,
     note: '',
+    keys_back_at: null,
   };
 }
 
@@ -127,7 +128,7 @@ export const balanceDue = (s: Pick<StaffStay, 'total_usd' | 'paid_usd'>) => roun
 // ---------------------------------------------------------------------
 // Tareas
 // ---------------------------------------------------------------------
-export type TaskId = 'clean_before' | 'deposit_in' | 'keys' | 'collect' | 'inspect' | 'clean_after' | 'linens';
+export type TaskId = 'clean_before' | 'deposit_in' | 'keys' | 'collect' | 'inspect' | 'clean_after' | 'linens' | 'keys_back';
 export interface Task {
   id: TaskId;
   label: string;
@@ -146,7 +147,9 @@ export function arrivalTasks(s: StaffStay, o: StayOps): Task[] {
   ];
 }
 
-export function departureTasks(o: StayOps): Task[] {
+export function departureTasks(o: StayOps, s?: Pick<StaffStay, 'family'>): Task[] {
+  // cuando se va un familiar de la dueña no hay limpieza ni garantía: solo recibir las llaves
+  if (s?.family) return [{ id: 'keys_back', label: 'Recibir las llaves', done: !!o.keys_back_at }];
   return [
     ...(o.deposit_received_at ? [{ id: 'inspect' as const, label: 'Revisar el apartamento y devolver la garantía', done: !!o.deposit_returned_at }] : []),
     { id: 'clean_after', label: 'Limpieza después de la salida', done: !!o.clean_after_at },
@@ -176,8 +179,7 @@ export function agenda(stays: StaffStay[], ops: StayOps[], today: string, deposi
     if (s.status === 'cancelada') continue;
     const o = opsFor(ops, s.id, deposit);
     items.push({ stay: s, event: 'llega', date: s.check_in, tasks: arrivalTasks(s, o), ops: o });
-    // cuando se va un familiar no hay limpieza ni garantía que revisar
-    if (!s.family) items.push({ stay: s, event: 'sale', date: s.check_out, tasks: departureTasks(o), ops: o });
+    items.push({ stay: s, event: 'sale', date: s.check_out, tasks: departureTasks(o, s), ops: o });
   }
   const from = addDays(today, -lookBack);
   const until = addDays(today, days);

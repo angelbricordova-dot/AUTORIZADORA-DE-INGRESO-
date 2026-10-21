@@ -22,6 +22,7 @@ const TASK_ICON: Record<TaskId, IconName> = {
   inspect: 'eye',
   clean_after: 'broom',
   linens: 'towel',
+  keys_back: 'key',
 };
 
 const STAMP_FIELD: Partial<Record<TaskId, keyof StayOps>> = {
@@ -29,6 +30,7 @@ const STAMP_FIELD: Partial<Record<TaskId, keyof StayOps>> = {
   keys: 'keys_at',
   clean_after: 'clean_after_at',
   linens: 'linens_at',
+  keys_back: 'keys_back_at',
 };
 
 const nowISO = () => new Date().toISOString();
