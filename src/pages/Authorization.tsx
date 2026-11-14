@@ -88,7 +88,16 @@ function AuthorizationEditor({ r, initialProperty }: { r: Reservation | null; in
   const [vehicles, setVehicles] = useState<VehicleRow[]>(() => (r?.vehicles ?? []).map((v) => ({ ...v, key: nextKey() })));
   const [stayType, setStayType] = useState<StayType>(r?.stay_type ?? 'Alquiler Vacacional');
   const [notes, setNotes] = useState('');
-  const [mode, setMode] = useState<ReadMode>(aiEnabled ? 'ia' : 'local');
+  const [mode, setModeState] = useState<ReadMode>(aiEnabled ? 'ia' : 'local');
+  const [modeChosen, setModeChosen] = useState(false);
+  const setMode = (m: ReadMode) => {
+    setModeChosen(true);
+    setModeState(m);
+  };
+  // si la IA se confirma (o deja de estar) después de abrir la planilla, el modo se ajusta solo
+  useEffect(() => {
+    if (!modeChosen || !aiEnabled) setModeState(aiEnabled ? 'ia' : 'local');
+  }, [aiEnabled, modeChosen]);
   const [reading, setReading] = useState<string | null>(null);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');

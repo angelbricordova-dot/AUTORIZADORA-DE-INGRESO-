@@ -7,17 +7,21 @@ import { formatCedula, isValidCedula, isValidPlate, normalizePlate } from './ced
 import { cleanText } from './sanitize';
 
 export interface AiStatus {
-  enabled: boolean;
+  /** true/false = lo dijo el servidor; null = no se pudo preguntar (sin señal, servidor ocupado) */
+  enabled: boolean | null;
 }
 
 export async function aiStatus(): Promise<AiStatus> {
   try {
-    const r = await fetch('/api/leer-cedula', { method: 'GET', headers: { Accept: 'application/json' } });
-    if (!r.ok) return { enabled: false };
+    const r = await fetch('/api/leer-cedula', { method: 'GET', headers: { Accept: 'application/json' }, cache: 'no-store' });
+    // la función no existe en este sitio: no hay IA
+    if (r.status === 404) return { enabled: false };
+    if (!r.ok) return { enabled: null };
     const j = (await r.json()) as { enabled?: unknown };
     return { enabled: j.enabled === true };
   } catch {
-    return { enabled: false };
+    // sin conexión en ese momento: no se sabe, se vuelve a preguntar
+    return { enabled: null };
   }
 }
 
@@ -31,11 +35,17 @@ async function toBase64(blob: Blob): Promise<string> {
 async function askAI(file: Blob, accessToken: string, kind: 'cedula' | 'vehiculo'): Promise<unknown> {
   const canvas = await toCanvas(file, 1568);
   const jpeg = await canvasToBlob(canvas, 'image/jpeg', 0.85);
-  const res = await fetch('/api/leer-cedula', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-    body: JSON.stringify({ image: await toBase64(jpeg), media_type: 'image/jpeg', kind }),
-  });
+  let res: Response;
+  try {
+    res = await fetch('/api/leer-cedula', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ image: await toBase64(jpeg), media_type: 'image/jpeg', kind }),
+    });
+  } catch {
+    throw new Error('No hay conexión para leer con IA. Revisa la señal e inténtalo de nuevo, o usa la lectura en el teléfono.');
+  }
+  if (res.status === 503) throw new Error('La lectura con IA no está activada en el servidor. Usa la lectura en el teléfono.');
   if (res.status === 429) throw new Error('Llegaste al límite de lecturas con IA por esta hora. Usa la lectura local o escribe los datos.');
   if (res.status === 401) throw new Error('Tu sesión venció. Vuelve a entrar.');
   if (!res.ok) throw new Error('La lectura con IA no respondió. Usa la lectura local o escribe los datos.');

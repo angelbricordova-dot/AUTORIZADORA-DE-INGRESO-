@@ -106,7 +106,9 @@ function Shell() {
   const scrolled = useScrolled();
   const [data, setData] = useState<AppData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [aiEnabled, setAiEnabled] = useState(false);
+  // null = todavía no se sabe: se deja usar la IA y se sigue preguntando
+  const [aiState, setAiState] = useState<boolean | null>(supabaseConfigured ? null : false);
+  const aiEnabled = supabaseConfigured && aiState !== false;
   const today = todayISO();
 
   const reload = useCallback(async () => {
@@ -120,8 +122,41 @@ function Shell() {
 
   useEffect(() => {
     reload();
-    if (supabaseConfigured) aiStatus().then((s) => setAiEnabled(s.enabled));
   }, [reload]);
+
+  // Antes se preguntaba una sola vez al abrir: si en ese momento no había señal (o el teléfono
+  // reanudaba la app sin conexión), la IA quedaba deshabilitada hasta cerrar la app.
+  // Ahora se reintenta y se vuelve a preguntar al recuperar la conexión o al volver a la app.
+  useEffect(() => {
+    if (!supabaseConfigured) return;
+    let alive = true;
+    let tries = 0;
+    let timer: number | undefined;
+    const check = () => {
+      window.clearTimeout(timer);
+      aiStatus().then((s) => {
+        if (!alive) return;
+        if (s.enabled !== null) setAiState(s.enabled);
+        else if (tries++ < 4) timer = window.setTimeout(check, 3000 * tries);
+      });
+    };
+    const again = () => {
+      if (document.visibilityState !== 'visible') return;
+      tries = 0;
+      check();
+    };
+    check();
+    window.addEventListener('online', again);
+    window.addEventListener('focus', again);
+    document.addEventListener('visibilitychange', again);
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+      window.removeEventListener('online', again);
+      window.removeEventListener('focus', again);
+      document.removeEventListener('visibilitychange', again);
+    };
+  }, []);
 
   const ctx = useMemo<AppCtx | null>(
     () =>

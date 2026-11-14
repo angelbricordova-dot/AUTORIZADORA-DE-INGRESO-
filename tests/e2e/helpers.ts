@@ -10,10 +10,14 @@ export function watchErrors(page: Page): string[] {
   return errors;
 }
 
+/** Fecha relativa a hoy en Venezuela (la misma zona horaria con la que corren las pruebas). */
 export function iso(daysFromToday: number): string {
-  const t = new Date();
-  const x = new Date(t.getFullYear(), t.getMonth(), t.getDate() + daysFromToday);
-  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+  const [y, m, d] = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Caracas', year: 'numeric', month: '2-digit', day: '2-digit' })
+    .format(new Date())
+    .split('-')
+    .map(Number);
+  const x = new Date(Date.UTC(y, m - 1, d + daysFromToday));
+  return x.toISOString().slice(0, 10);
 }
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
