@@ -433,7 +433,20 @@ export const supabaseStore: DataStore = {
 
   async saveOps(reservationId, patch) {
     const clean = sanitizeOpsPatch(patch);
-    const { error } = await getSupabase().from('stay_ops').upsert({ reservation_id: reservationId, ...clean }, { onConflict: 'reservation_id' });
+    const sb = getSupabase();
+    // No se usa upsert: arma la fila completa con los valores por defecto y la base revisa sus reglas
+    // sobre esa fila antes de ver que ya existía (p. ej. "garantía devuelta" sin "recibida" → rechazo).
+    const update = () => sb.from('stay_ops').update(clean).eq('reservation_id', reservationId).select('reservation_id');
+    let res = await update();
+    let error = res.error;
+    if (!error && !res.data?.length) {
+      error = (await sb.from('stay_ops').insert({ reservation_id: reservationId, ...clean })).error;
+      // otra persona la creó en ese mismo instante: se actualiza la que ya existe
+      if (error?.code === '23505') {
+        res = await update();
+        error = res.error;
+      }
+    }
     if (error && 'keys_back_at' in clean && missingSchema(error))
       throw new Error('Para anotar las llaves recibidas falta correr en Supabase la migración 20261023000000_llaves_devueltas.sql.');
     if (error) throw friendlyError(error);
